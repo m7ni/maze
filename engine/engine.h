@@ -1,8 +1,12 @@
-#include "gameui.h"
+#ifndef ENGINE_H
+#define ENGINE_H
+
+#include "../utils/utils.h"
+#include "../gameui/gameui.h"
 
 typedef struct {
     int PID;
-
+    
 
 } BOT;
 
@@ -22,5 +26,12 @@ typedef struct {
     ROCK rocks[50];     //max 50
     int timeEnrolment;  //time to enroll
     int minNplayers;    //dado pela VAR de ambiente NPLAYERS
-
+    int pipeBot[2];
 } GAME;
+
+void createPipe(int *pipeBot);
+
+void launchBot();
+
+void closeBot(int pid);
+#endif

@@ -1,43 +1,43 @@
-CC = gcc -W -pthread
+CC = gcc -W
 
-all: engine gameui
+all: engine/engine.exe gameui/gameui.exe
 	@ echo "Task completed"
 
 debug: gameui-debug engine-debug
 	@ echo "Debug compilation concluded."
 
 # Engine Section
-engine: ./engine/engine.o ./utils/utils.o
+engine/engine.exe: engine/engine.o utils/utils.o
 	@ $(CC) $^ -o $@
 	@ echo "Engine compiled."
 
-engine.o: ./engine/engine.c ./engine/engine.h ./utils/utils.h
+engine.o: engine/engine.c engine/engine.h utils/utils.h
 	@ $(CC) -c $< -o $@
 
 engine-debug: engine.c engine.h utils-debug
-	@ $(CC) -g -c ./engine/engine.c -o ./engine/engine.o
-	@ $(CC) -g ./engine/engine.o ./utils/utils.o -o ./engine/engine
+	@ $(CC) -g -c engine/engine.c -o engine/engine.o
+	@ $(CC) -g engine/engine.o utils/utils.o -o engine/engine.exe
 	@ echo "Engine compiled."
 
 # GameUI Section
-gameui: ./gameui/gameui.o ./utils/utils.o
+gameui/gameui.exe: gameui/gameui.o utils/utils.o
 	@ $(CC) $^ -o $@
-	@ echo "Programa árbitro compilado."
+	@ echo "Programa gameui compilado."
 
-gameui.o: ./gameui/gameui.c ./gameui/gameui.h utils.h
+gameui.o: gameui/gameui.c gameui/gameui.h utils/utils.h
 	@ $(CC) -c $< -o $@
 
-gameui-debug: ./gameui/gameui.c ./gameui/gameui.h utils-debug
-	@ $(CC) -g -c ./arbitro.c -o ./arbitro.o
-	@ $(CC) -g ./arbitro.o ./utils.o -o ./arbitro
-	@ echo "Programa árbitro compilado."
+gameui-debug: gameui/gameui.c gameui/gameui.h utils-debug
+	@ $(CC) -g -c gameui/gameui.c -o gameui/gameui.o
+	@ $(CC) -g gameui/gameui.o utils/utils.o -o gameui/gameui
+	@ echo "Programa gameui compilado."
 
 # UTILS Section
-utils.o: ./utils/utils.c ./utils/utils.h
+utils.o: utils/utils.c utils/utils.h
 	@ $(CC) -c $< -o $@
 
-utils-debug: ./utils/utils.c ./utils/utils.h
-	@ $(CC) -g -c $< -o ./utils/utils.o
+utils-debug: utils/utils.c utils/utils.h
+	@ $(CC) -g -c $< -o utils/utils.o
 
 
 # workaround para fazer com que objetos intermédios (neste casos, os ficheiro objeto dos jogos) não sejam automaticamente apagados
@@ -50,11 +50,10 @@ clean: clean-obj clean-exe
 	@ echo "Diretorio limpo."
 
 clean-obj:
-	@ rm *.o -f
-	@ rm ./*.o -f
+	@ rm ./*/*.o -f
 
 clean-exe:
-	@ rm ./gameui ./engine -f
+	@ rm ./*/*.exe -f
 
 clean-pipes:
 	@ echo "Pipes deixados por problemas de execução eliminados."
