@@ -8,53 +8,66 @@
 
 int main(int argc, char *argv[]) {
     PLAYER player;
-    int flag = 0, i = 0;
-    char str1[10], str2[30], str3[100];
-    char cmd[200];
+    
 
-    if(sizeof(argv) != 2) {
+    if(argc != 2) {
         printf("\n[ERROR] Invalid number of arguments -> Sintax: <./gameui NAME>\n");
         exit(1);
     }
     
     strcpy(player.name, argv[1]);
-/*
-    for(i = 0 ; i < 5 ; i++) {
-        if(game.players[i].name != NULL) {
-            if(strcmp(game.players[i].name, player.name) == 0) {
-                flag = 1;
-                printf("\nThere are already someone with that name\n");
-                exit(1);
-            }
-        } else 
-            break;
-    }
 
-    if(flag == 0)
-        game.players[i] = player;
-    */
+    //send player to engine to see if he can enter the game
+
+    while(1) {
+
+        //ver com as ncurses se recebe uma tecla de direcao ou o espaco
+
+        /*
+        if(strcmp(,' ')) {
+            printf("\nCommand mode active\n");
+            keyboardCmd(player);
+        }*/
+    }
+    
+    
+}
+
+void keyboardCmdGameUI(PLAYER player) {
+    char str1[10], str2[30], str3[100];
+    char cmd[200];
+
     while(1) {
         printf("\nCommand: ");
         fflush(stdout);
-        scanf("%s", &cmd);
+        fgets(cmd, sizeof(cmd), stdin);
         printf("\n");
         
         if (sscanf(cmd, "%s %s %[^\n]", str1, str2, str3) == 3 && strcmp(str1, "msg") == 0) {
             strcpy(player.command, str1);
             strcpy(player.personMessage, str2);
             strcpy(player.message, str3);
+            //send player to engine
+            printf("\nVALID");
         } else {
+            cmd[ strlen( cmd ) - 1 ] = '\0';
             if(strcmp(cmd, "players") == 0) {
                 strcpy(player.command, cmd);
+                //send player to engine
                 printf("\nVALID");
             }else if(strcmp(cmd, "exit") == 0) {
                 strcpy(player.command, cmd);
                 printf("\nVALID");
                 //avisar o motor com um sinal;
-            } else {
+                return;
+            } /*else if(strcmp(cmd, ' ') == 0) {
+                printf("\nCommand mode over\n");
+                return;
+            } */
+            else {
                 printf("\nINVALID");
             }
         }
     }
-}
 
+}
