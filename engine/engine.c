@@ -1,10 +1,14 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include <signal.h>
-#include "engine.h"
-#include <unistd.h>
+#include <string.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <signal.h>
+#include <error.h>
+#include <sys/wait.h>
+#include "engine.h"
 
 #define TAM 20
 
@@ -15,7 +19,7 @@ int main(int argc, char *argv[]) {
     game.pipeBot = pipeBot;
 
     game.bots[0].pid = launchBot(game.pipeBot,game);
-    readBot(game.pipeBot);
+    readBot(game.pipeBot, game.bots[0].pid);
     closeBot(game.bots[0].pid, game);
     //keyboardCmdEngine(game);
 
@@ -29,37 +33,30 @@ void createPipe(int *pipeBot){
     //eventualy close pipeBot[0] which is where we read.
 }
 
-void readBot(int *pipeBot) {
-    char buffer[BUFFER_SIZE];
-    int bytes_read,i=0;
-    printf("\npipebot %d\n", pipeBot[0]);
-    while(i<3){
-        // Read from the pipe
-        bytes_read = read(pipeBot[0], buffer, BUFFER_SIZE);
-        if (bytes_read < 0) {
-            perror("read");
-        } else {
-            buffer[bytes_read] = '\0';  // Null-terminate the received data
 
-            // Print the received string
-            printf("Received: %s\n", buffer);
-        }
-        i++;
-    }
-}
+//usar sprintf para dar o nome ao namedpipe com o pid do player no final
+
 
 int launchBot(int *pipeBot, GAME game){
     int pidBot = fork();
 
     if (pidBot == 0) {
-        close(pipeBot[0]);
-        if (dup2(pipeBot[1], STDOUT_FILENO) == -1) {
+        
+
+        ////////////
+        /*if (dup2(pipeBot[1], STDOUT_FILENO) == -1) {
             perror("dup2");
             exit(EXIT_FAILURE);
-        }
-        close(pipeBot[1]);
+        }*/
+        ////////////
+        
+        close(1);
+        dup(pipeBot[1]);
 
-       int res = execl("bot/bot.exe", "bot", "2","2", NULL);
+        close(pipeBot[1]);
+        close(pipeBot[0]);
+
+        int res = execl("bot/bot.exe", "bot", "2","2", NULL);
         if(res!=0){
             perror("Failed Execl ");
         }
@@ -72,6 +69,27 @@ int launchBot(int *pipeBot, GAME game){
         perror("Error creating Bot (Failed Fork())");
     }
 
+}
+
+void readBot(int *pipeBot, int pid) {
+    
+    char buffer[BUFFER_SIZE];
+    int bytes_read,i=0;
+    printf("\npipebot %d\n", pipeBot[0]);
+    printf("\npid do bot %d\n", pid);
+    while(i<3){
+        // Read from the pipe
+        bytes_read = read(pipeBot[0], buffer, 256);
+        if (bytes_read < 0) {
+            perror("read");
+        } else {
+            buffer[bytes_read] = '\0';  // Null-terminate the received data
+
+            // Print the received string
+            printf("Received: %s\n", buffer);
+        }
+        i++;
+    }
 }
 
 void closeBot(int pid, GAME game) {
@@ -169,7 +187,7 @@ void keyboardCmdEngine(GAME game) {
             } else if(strcmp(cmd, "bot") == 0) {
                 printf("\nVALID");
                 game.bots[0].pid = launchBot(game.pipeBot,game);
-                readBot(game.pipeBot);
+                readBot(game.pipeBot, game.bots[0].pid);
                 closeBot(game.bots[0].pid, game);
                 
             } 
@@ -244,7 +262,6 @@ void readFileMap(int level, GAME *game) {
         printf("\n");
     }
 
-    return 0; // Return success code
 }
 
 

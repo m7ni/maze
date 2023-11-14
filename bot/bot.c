@@ -32,12 +32,11 @@ int main(int argc, char * argv[]) {
    sa.sa_sigaction = termina;
    sigaction(SIGINT, &sa, NULL);
    while (RUNNING) {
-    if(sleep(interval)){
+      sleep(interval);
       x = rand() % NCOL;
       y = rand() % NLIN;
       printf("%d %d %d\n", x, y, duration);
       fflush(stdout);
-    }
    }
    return 0;
 }

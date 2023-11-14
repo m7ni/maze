@@ -43,5 +43,7 @@ void closeBot(int pid, GAME game);
 
 void keyboardCmdEngine(GAME game);
 
+void readBot(int *pipeBot, int pid);
+
 
 #endif
