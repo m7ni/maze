@@ -28,31 +28,24 @@ int main(int argc, char *argv[]) {
 
 void createPipe(int *pipeBot){
     pipe(pipeBot);
-    close(pipeBot[1]);
 
-    //eventualy close pipeBot[0] which is where we read.
+
 }
-
-
-//usar sprintf para dar o nome ao namedpipe com o pid do player no final
-
 
 int launchBot(int *pipeBot, GAME game){
     int pidBot = fork();
+    printf("\nfork result %d\n", pidBot);
 
+    if(pidBot <0){
+        perror("Error creating Bot (Failed Fork())");
+        return -1;
+    }
     if (pidBot == 0) {
-        
-
-        ////////////
-        /*if (dup2(pipeBot[1], STDOUT_FILENO) == -1) {
+    
+        if (dup2(pipeBot[1], STDOUT_FILENO) == -1) {
             perror("dup2");
             exit(EXIT_FAILURE);
-        }*/
-        ////////////
-        
-        close(1);
-        dup(pipeBot[1]);
-
+        }
         close(pipeBot[1]);
         close(pipeBot[0]);
 
@@ -61,22 +54,20 @@ int launchBot(int *pipeBot, GAME game){
             perror("Failed Execl ");
         }
     }
-    else if (pidBot > 0) {
+    else {
+        printf("\nBack to the parent\n");
         game.nBots++;
         return pidBot;
-    }
-    else {
-        perror("Error creating Bot (Failed Fork())");
     }
 
 }
 
 void readBot(int *pipeBot, int pid) {
-    
     char buffer[BUFFER_SIZE];
     int bytes_read,i=0;
     printf("\npipebot %d\n", pipeBot[0]);
     printf("\npid do bot %d\n", pid);
+        close(pipeBot[1]);
     while(i<3){
         // Read from the pipe
         bytes_read = read(pipeBot[0], buffer, 256);
