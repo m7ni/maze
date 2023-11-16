@@ -14,6 +14,6 @@ typedef struct {
 
 } PLAYER;
 
-void keyboardCmdGameUI(PLAYER player);
+void keyboardCmdGameUI(PLAYER player, WINDOW *window);
 
 #endif

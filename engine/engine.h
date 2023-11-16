@@ -45,5 +45,6 @@ void keyboardCmdEngine(GAME game);
 
 void readBot(int *pipeBot, int pid);
 
+void readFileMap(int level, GAME game);
 
 #endif

@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <error.h>
 #include <sys/wait.h>
+
 #include "engine.h"
 
 #define TAM 20
@@ -18,10 +19,8 @@ int main(int argc, char *argv[]) {
     createPipe(pipeBot);
     game.pipeBot = pipeBot;
 
-    game.bots[0].pid = launchBot(game.pipeBot,game);
-    readBot(game.pipeBot, game.bots[0].pid);
-    closeBot(game.bots[0].pid, game);
-    //keyboardCmdEngine(game);
+    
+    keyboardCmdEngine(game);
 
 
 }
@@ -182,6 +181,17 @@ void keyboardCmdEngine(GAME game) {
                 closeBot(game.bots[0].pid, game);
                 
             } 
+            else if(strcmp(cmd, "bot") == 0) {
+                printf("\nVALID");
+                game.bots[0].pid = launchBot(game.pipeBot,game);
+                readBot(game.pipeBot, game.bots[0].pid);
+                closeBot(game.bots[0].pid, game);
+                
+            } 
+            else if(strcmp(cmd, "showmap") == 0) {
+                readFileMap(1, game);
+                return;
+            } 
             else if(strcmp(cmd, "exit") == 0) {
                 printf("\nVALID\n");
                 //avisar os bots com um sinal;
@@ -196,10 +206,10 @@ void keyboardCmdEngine(GAME game) {
     }
 }
 
-void readFileMap(int level, GAME *game) {
+void readFileMap(int level, GAME game) {
     FILE *file;
     char fileName[30];
-
+    
     switch(level) {
         case 1:
             strcpy(fileName, "level1map.txt");
@@ -233,7 +243,7 @@ void readFileMap(int level, GAME *game) {
                 break;
             }
 
-            game->map[i][j] = (char)ch;
+            game.map[i][j] = (char)ch;
         }
 
         // Skip remaining characters in the line if it's longer than 40 characters
@@ -248,7 +258,7 @@ void readFileMap(int level, GAME *game) {
     // Print the content of the array with explicit newline characters
     for (int i = 0; i < 16; ++i) {
         for (int j = 0; j < 40; ++j) {
-            printf("%c", game->map[i][j]);
+            printf("%c", game.map[i][j]);
         }
         printf("\n");
     }

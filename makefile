@@ -21,7 +21,7 @@ engine-debug: engine/engine.c engine/engine.h utils-debug
 
 # GameUI Section
 gameui/gameui.exe: gameui/gameui.o utils/utils.o
-	@ $(CC) $^ -o $@
+	@ $(CC) $^ -o $@ -lncurses
 	@ echo "Programa gameui compilado."
 
 gameui.o: gameui/gameui.c gameui/gameui.h utils/utils.h
