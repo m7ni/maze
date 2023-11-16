@@ -59,7 +59,7 @@ int launchBot(int *pipeBot, GAME game){
         game.nBots++;
         return pidBot;
     }
-
+//luis borra botas
 }
 
 void readBot(int *pipeBot, int pid) {
