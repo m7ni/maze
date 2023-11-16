@@ -47,4 +47,15 @@ void readBot(int *pipeBot, int pid);
 
 void readFileMap(int level, GAME game);
 
+void setEnvVars();
+
+void getEnvVars(GAME game);
+
+/*
+ENROLLMENT - time to enroll
+NPLAYERS - min of players
+DURATION - 1 level time
+DECREMENT - decrement of time when level increases
+*/
+
 #endif

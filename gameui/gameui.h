@@ -1,6 +1,7 @@
 #ifndef GAMEUI_H
 #define GAMEUI_H
 #include "../utils/utils.h"
+#include <ncurses.h>
 
 typedef struct {
     char name[30];

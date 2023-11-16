@@ -17,10 +17,50 @@ int main(int argc, char *argv[]) {
     GAME game;
     int pipeBot[2];
     createPipe(pipeBot);
+    setEnvVars();
+    getEnvVars(game);
     game.pipeBot = pipeBot;
 
     
     keyboardCmdEngine(game);
+
+
+}
+
+void setEnvVars() {
+    setenv("ENROLLMENT", "60", 1); // Create the variable, overwriting if exist (1) 
+    setenv("NPLAYERS", "2", 1); 
+    setenv("DURATION", "60", 1); 
+    setenv("DECREMENT", "5", 1); 
+}
+
+void getEnvVars(GAME game) {
+    char *p = NULL;
+
+    p = getenv("ENROLLMENT"); // Lervariável com um determinado nome
+
+    if(p != NULL) {
+        printf("\nVariable: ENROLLMENT = %s", p);
+    }
+    //cast to int to put in struct game
+
+    p = getenv("NPLAYERS"); // Lervariável com um determinado nome
+
+    if(p != NULL) {
+        printf("\nVariable: NPLAYERS = %s", p);
+    }
+
+    p = getenv("DURATION"); // Lervariável com um determinado nome
+
+    if(p != NULL) {
+        printf("\nVariable: DURATION = %s", p);
+    }
+
+    p = getenv("DECREMENT"); // Lervariável com um determinado nome
+
+    if(p != NULL) {
+        printf("\nVariable: DECREMENT = %s", p);
+    }
 
 
 }

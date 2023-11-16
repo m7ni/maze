@@ -28,7 +28,7 @@ gameui.o: gameui/gameui.c gameui/gameui.h utils/utils.h
 	@ $(CC) -c $< -o $@
 
 gameui-debug: gameui/gameui.c gameui/gameui.h utils-debug
-	@ $(CC) -g -c gameui/gameui.c -o gameui/gameui.o
+	@ $(CC) -g -c gameui/gameui.c -o gameui/gameui.o -lncurses
 	@ $(CC) -g gameui/gameui.o utils/utils.o -o gameui/gameui.out
 	@ echo "Programa gameui compilado."
 
