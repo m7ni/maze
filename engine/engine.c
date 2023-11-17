@@ -98,7 +98,7 @@ int launchBot(int *pipeBot, GAME game){
         game.nBots++;
         return pidBot;
     }
-//luis borra botas
+
 }
 
 void readBot(int *pipeBot, int pid) {
@@ -123,14 +123,16 @@ void readBot(int *pipeBot, int pid) {
 }
 
 void closeBot(int pid, GAME game) {
-    int status;
+    int status = 0;
     union sigval value;
     value.sival_int = 2;  // You can pass an integer value if needed
 
     if (sigqueue((pid_t)pid, SIGINT, value) == 0) {
+
+
         printf("Sent SIGINT signal to Bot with PID %d\n", pid);
-        wait(&status);
-            if(WIFEXITED(status)){
+        wait(&pid);
+            if(WIFEXITED(pid)){
                 printf("Bot with PID [%d] terminated (%d)\n",pid,status);
                 game.nBots--;
             }

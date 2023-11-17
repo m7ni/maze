@@ -67,16 +67,31 @@ int main(int argc, char *argv[]) {
    initscr();  // Obrigatorio e sempre a primeira operação de ncurses
    start_color();          // Inicializa o motor de cores
    erase();      // Limpa o ecrã e posiciona o cursor no canto superir esquerdo (refresh mais adiante)
+   
+   
+   
+   
+   
+   init_pair(1, COLOR_RED, COLOR_BLACK);
+   init_pair(2, COLOR_GREEN, COLOR_BLACK);
+   init_pair(3, COLOR_BLUE, COLOR_BLACK);
+   init_pair(4, COLOR_YELLOW, COLOR_BLUE);
+   init_pair(5, COLOR_YELLOW, COLOR_BLACK);
+   refresh(); 
+
+
 
     noecho();   // Desliga o echo porque a seguir vai ler telcas de direção
                   // não se pretende "ecoar" essa tecla no ecrã
     cbreak();   // desliga a necessidade de enter. cada tecla é lida imediatamente
 
 
+  attron(COLOR_PAIR(5));
+
     desenhaMoldura(20,50,6,15);
     window = newwin(20, 50, 6, 15);   // cria uma janela 10 lin x 20 col em lin 6, col 15
-    wattrset(window, COLOR_PAIR(4));
-    wbkgd(window, COLOR_PAIR(4));
+    wattrset(window, COLOR_PAIR(4));  // define foreground/backgorund dos caracteres
+    wbkgd(window, COLOR_PAIR(4));      // define backgound dos espaço vazio
     scrollok(window, TRUE);
     keypad(window, TRUE);  
 
