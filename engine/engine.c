@@ -27,11 +27,11 @@ int main(int argc, char *argv[]) {
     int pipeBot[2];
     createPipe(pipeBot);
     setEnvVars();
-    getEnvVars(game);
+    getEnvVars(&game);
     game.pipeBot = pipeBot;
 
     
-    keyboardCmdEngine(game);
+    keyboardCmdEngine(&game);
 
 
 }
@@ -169,7 +169,7 @@ void acceptPlayer(PLAYER player, GAME *game) {
     game->nPlayers++;
 }
 
-void keyboardCmdEngine(GAME game) {
+void keyboardCmdEngine(GAME *game) {
     char cmd[200], str1[30], str2[30];
     
     while(1) {
@@ -181,9 +181,9 @@ void keyboardCmdEngine(GAME game) {
         
         
         if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0) {
-            for(int i = 0 ; i < game.nPlayers ; i++) {
-                if(strcmp(game.players[i].name, str2)) {
-                    printf("\nPlayer %s has been kicked\n", game.players[i].name);
+            for(int i = 0 ; i < game->nPlayers ; i++) {
+                if(strcmp(game->players[i].name, str2)) {
+                    printf("\nPlayer %s has been kicked\n", game->players[i].name);
                     //send signal to player and remove him from the game
                     printf("\nVALID");
                     flag = 1;
@@ -198,20 +198,20 @@ void keyboardCmdEngine(GAME game) {
             cmd[ strlen( cmd ) - 1 ] = '\0';
             if(strcmp(cmd, "users") == 0) {
                 printf("\nPlayers:\n");
-                for(int i = 0 ; i < game.nPlayers ; i++) {
-                    printf("\tPlayer %s\n", game.players[i].name);
+                for(int i = 0 ; i < game->nPlayers ; i++) {
+                    printf("\tPlayer %s\n", game->players[i].name);
                 }
                 printf("\nVALID");
             } else if(strcmp(cmd, "bots") == 0) {
                 printf("\nVALID");
-                if(game.nBots == 0) {
+                if(game->nBots == 0) {
                     printf("\nThere are no bots yet\n");
                     break;
                 }
                 printf("\nBots:\n");
-                for(int i = 0 ; i < game.nBots ; i++) {
+                for(int i = 0 ; i < game->nBots ; i++) {
                     printf("Bot %d with PID[%d]\t interval [%d]\t duration [%d]", 
-                    i, game.bots[i].pid, game.bots[i].interval, game.bots[i].duration);
+                    i, game->bots[i].pid, game->bots[i].interval, game->bots[i].duration);
                 }
             } 
             else if(strcmp(cmd, "bmov") == 0) {
@@ -227,18 +227,11 @@ void keyboardCmdEngine(GAME game) {
 
             } else if(strcmp(cmd, "bot") == 0) {
                 printf("\nVALID");
-                game.bots[0].pid = launchBot(game.pipeBot,game);
-                readBot(game.pipeBot, game.bots[0].pid);
-                closeBot(game.bots[0].pid, game);
+                game->bots[0].pid = launchBot(game->pipeBot,*game);
+                readBot(game->pipeBot, game->bots[0].pid);
+                closeBot(game->bots[0].pid, *game);
                 
-            } 
-            else if(strcmp(cmd, "bot") == 0) {
-                printf("\nVALID");
-                game.bots[0].pid = launchBot(game.pipeBot,game);
-                readBot(game.pipeBot, game.bots[0].pid);
-                closeBot(game.bots[0].pid, game);
-                
-            } 
+            }
             else if(strcmp(cmd, "showmap") == 0) {
                 readFileMap(1, game);
                 return;

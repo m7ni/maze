@@ -41,7 +41,7 @@ void desenhaMoldura(int alt, int comp, int lin, int col) {
 }
 
 int main(int argc, char *argv[]) {
-    int lin, col, color, exit;
+    int lin, col, color, stop;
 	char pipeName[50];
     WINDOW * window;
     int ch;
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
 
 	//send player to engine to see if he can enter the game
 	int size = write (fdWrInitEngine, &player, sizeof(player));
-	printf("\Sent: %s com o tamanho [%d]", player.name, size);
+	printf("\nSent: %s com o tamanho [%d]", player.name, size);
 
 
     //receive response from engine to see if the player can enter the game
@@ -81,7 +81,9 @@ int main(int argc, char *argv[]) {
         perror("Error openning gameui fifo\n"); 
     }
 
-	int size = read (fdRdInitEngine, &player, sizeof(player));
+	size = 0;
+
+	size = read (fdRdInitEngine, &player, sizeof(player));
 	if(!player.accepted) {
 		perror("There are already someone with your name or the time to enter the game ended\n"); 
 		//unlink();
@@ -118,9 +120,9 @@ int main(int argc, char *argv[]) {
     wprintw(window,"Teclas de direção e espaço e q para sair\n");
     wrefresh(window);
 
-    exit = 0;
+    stop = 0;
     p = NULL;
-    while (exit != 1) {
+    while (stop != 1) {
        	ch = wgetch(window);  // MUITO importante: o input é feito sobre a janela em questão
        	switch (ch) {
        	case KEY_UP:
@@ -145,7 +147,7 @@ int main(int argc, char *argv[]) {
          	cbreak();        // e a lógica de input em linha+enter no fim
          	break;
       	case 'q':
-         	exit = 1;
+         	stop = 1;
          	break;
     	}
       	if (p != NULL) {

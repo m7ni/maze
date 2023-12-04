@@ -51,7 +51,7 @@ void readFileMap(int level, GAME *game);
 
 void setEnvVars();
 
-void getEnvVars(GAME game);
+void getEnvVars(GAME *game);
 
 void movePlayer(GAME *game, PLAYER *player);
 
