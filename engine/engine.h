@@ -15,7 +15,7 @@ typedef struct {
 
 typedef struct {
     int position[2];
-    int duration;   //tempo que a pedra permanece no mapa
+    int duration;   //time that the rock stays in the maze
 } ROCK;
 
 typedef struct {
@@ -41,16 +41,21 @@ int launchBot(int *pipeBot, GAME game);
 
 void closeBot(int pid, GAME game);
 
-void keyboardCmdEngine(GAME game);
+void acceptPlayer(PLAYER player, GAME *game);
+
+void keyboardCmdEngine(GAME *game);
 
 void readBot(int *pipeBot, int pid);
 
-void readFileMap(int level, GAME game);
+void readFileMap(int level, GAME *game);
 
 void setEnvVars();
 
 void getEnvVars(GAME game);
 
+void movePlayer(GAME *game, PLAYER *player);
+
+void placePlayers(GAME *game);
 /*
 ENROLLMENT - time to enroll
 NPLAYERS - min of players
