@@ -11,10 +11,19 @@
 
 #include "engine.h"
 
+#define ENGINE_FIFO "ENGINEFIFO"
+
 #define TAM 20
 
 int main(int argc, char *argv[]) {
     GAME game;
+
+
+    if(mkfifo(ENGINE_FIFO, 0666) == -1) {
+        perror("\nError opening fifo or another engine is already running\n"); 
+        return -1;
+    }   
+    
     int pipeBot[2];
     createPipe(pipeBot);
     setEnvVars();
@@ -34,7 +43,7 @@ void setEnvVars() {
     setenv("DECREMENT", "5", 1); 
 }
 
-void getEnvVars(GAME game) {
+void getEnvVars(GAME *game) {
     char *p = NULL;
 
     p = getenv("ENROLLMENT"); // Lervariável com um determinado nome
@@ -141,11 +150,11 @@ void closeBot(int pid, GAME game) {
     }
 } 
 
-void acceptPlayer(PLAYER player, GAME game) {
+void acceptPlayer(PLAYER player, GAME *game) {
     int flag = 0, i = 0;
 
-    for(i = 0 ; i < game.nPlayers ; i++) {
-        if(strcmp(game.players[i].name, player.name) == 0) {
+    for(i = 0 ; i < game->nPlayers ; i++) {
+        if(strcmp(game->players[i].name, player.name) == 0) {
             flag = 1;
             printf("\nThere are already a player with that name\n");
             exit(1);
@@ -154,10 +163,10 @@ void acceptPlayer(PLAYER player, GAME game) {
     }
 
     if(flag == 0) {
-        game.players[i] = player;
+        game->players[i] = player;
         printf("\nPlayer %s [%d] was entered the game\n", player.name, i);
     }
-    game.nPlayers++;
+    game->nPlayers++;
 }
 
 void keyboardCmdEngine(GAME game) {
@@ -248,7 +257,7 @@ void keyboardCmdEngine(GAME game) {
     }
 }
 
-void readFileMap(int level, GAME game) {
+void readFileMap(int level, GAME *game) {
     FILE *file;
     char fileName[30];
     
@@ -285,7 +294,7 @@ void readFileMap(int level, GAME game) {
                 break;
             }
 
-            game.map[i][j] = (char)ch;
+            game->map[i][j] = (char)ch;
         }
 
         // Skip remaining characters in the line if it's longer than 40 characters
@@ -300,12 +309,69 @@ void readFileMap(int level, GAME game) {
     // Print the content of the array with explicit newline characters
     for (int i = 0; i < 16; ++i) {
         for (int j = 0; j < 40; ++j) {
-            printf("%c", game.map[i][j]);
+            printf("%c", game->map[i][j]);
         }
         printf("\n");
     }
 
 }
 
+void movePlayer(GAME *game, PLAYER *player){    //modify to use this function for the dynamic obstacles
+    int flagWin = 0;
+    switch (player->move) {
+        case 0:     //left
+            if(game->map[player->position[0]][player->position[1] - 1] == ' ') {
+                game->map[player->position[0]][player->position[1] - 1] == player->skin;
+                game->map[player->position[0]][player->position[1]] == ' ';
 
+                player->position[1] = player->position[1] - 1;
+            }
+            break;
+        case 1:     //up
+            if(game->map[player->position[0] - 1][player->position[1]] == ' ') {
+                if(player->position[0 - 1] == 0) {
+                    flagWin = 1;
+                }
 
+                game->map[player->position[0] - 1][player->position[1]] == player->skin;
+                game->map[player->position[0]][player->position[1]] == ' ';
+
+                player->position[0] = player->position[0] - 1;
+
+                if(flagWin == 1) {
+                    //call function to pass the level and initiate the game again
+                }
+            }
+            break;
+        case 2:     //right
+            if(game->map[player->position[0]][player->position[1] + 1] == ' ') {
+                game->map[player->position[0]][player->position[1] + 1] == player->skin;
+                game->map[player->position[0]][player->position[1]] == ' ';
+
+                player->position[1] = player->position[1] + 1;
+            }
+            break;
+        case 3:     //down
+            if(game->map[player->position[0] + 1][player->position[1]] == ' ') {
+                game->map[player->position[0] + 1][player->position[1]] == player->skin;
+                game->map[player->position[0]][player->position[1]] == ' ';
+
+                player->position[0] = player->position[0] + 1;
+            }
+            break;
+    }
+}
+
+void placePlayers(GAME *game) {
+    int colRand = rand() % 39 + 1;
+
+    for(int i = 0 ; i < game->nPlayers ; i++) {
+        srand(time(NULL));
+        colRand = rand() % 39 + 1;
+        if(game->map[14][colRand] == ' ') {
+            game->map[14][colRand] = game->players[i].skin;
+            game->players[i].position[0] = 14;
+            game->players[i].position[1] = colRand;
+        }
+    }
+}
