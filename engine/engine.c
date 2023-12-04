@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <error.h>
 #include <sys/wait.h>
+#include <time.h>
 
 #include "engine.h"
 
@@ -50,7 +51,7 @@ void getEnvVars(GAME *game) {
 
     if(p != NULL) {
         printf("\nVariable: ENROLLMENT = %s", p);
-        game->timeEnrolment = (int) p;
+        game->timeEnrolment = (int) *p;
     }
     //cast to int to put in struct game
 
@@ -58,21 +59,21 @@ void getEnvVars(GAME *game) {
 
     if(p != NULL) {
         printf("\nVariable: NPLAYERS = %s", p);
-        game->minNplayers = (int) p;
+        game->minNplayers = (int) *p;
     }
 
     p = getenv("DURATION"); // Lervariável com um determinado nome
 
     if(p != NULL) {
-        printf("\nVariable: DURATION = %s", p);
-        game->timeleft = (int) p;
+        printf("\nVariable: DURATION = %s", *p);
+        game->timeleft = (int) *p;
     }
 
     p = getenv("DECREMENT"); // Lervariável com um determinado nome
 
     if(p != NULL) {
         printf("\nVariable: DECREMENT = %s", p);
-        game->timeDec = (int) p;
+        game->timeDec = (int) *p;
     }
 
 
@@ -236,9 +237,9 @@ void keyboardCmdEngine(GAME *game) {        //thread to receive commands from th
 
             } else if(strcmp(cmd, "bot") == 0) {
                 printf("\nVALID");
-                game->bots[0].pid = launchBot(game->pipeBot,*game);
+                game->bots[0].pid = launchBot(game->pipeBot, game);
                 readBot(game->pipeBot, game->bots[0].pid);
-                closeBot(game->bots[0].pid, *game);
+                closeBot(game->bots[0].pid,  game);
                 
             }
             else if(strcmp(cmd, "showmap") == 0) {
