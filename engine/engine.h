@@ -38,9 +38,9 @@ typedef struct {
 
 void createPipe(int *pipeBot);
 
-int launchBot(int *pipeBot, GAME game);
+int launchBot(int *pipeBot, GAME *game);
 
-void closeBot(int pid, GAME game);
+void closeBot(int pid, GAME *game);
 
 void acceptPlayer(PLAYER player, GAME *game);
 

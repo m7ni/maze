@@ -84,7 +84,7 @@ void createPipe(int *pipeBot){
 
 }
 
-int launchBot(int *pipeBot, GAME game){
+int launchBot(int *pipeBot, GAME *game){
     int pidBot = fork();
     printf("\nfork result %d\n", pidBot);
 
@@ -108,7 +108,7 @@ int launchBot(int *pipeBot, GAME game){
     }
     else {
         printf("\nBack to the parent\n");
-        game.nBots++;
+        game->nBots++;
         return pidBot;
     }
 
@@ -135,7 +135,7 @@ void readBot(int *pipeBot, int pid) {
     }
 }
 
-void closeBot(int pid, GAME game) {
+void closeBot(int pid, GAME *game) {
     int status = 0;
     union sigval value;
     value.sival_int = 2;  // You can pass an integer value if needed
@@ -147,7 +147,7 @@ void closeBot(int pid, GAME game) {
         wait(&pid);
             if(WIFEXITED(pid)){
                 printf("Bot with PID [%d] terminated (%d)\n",pid,status);
-                game.nBots--;
+                game->nBots--;
             }
     } else {
         perror("sigqueue");
