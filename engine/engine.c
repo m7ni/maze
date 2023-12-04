@@ -50,6 +50,7 @@ void getEnvVars(GAME *game) {
 
     if(p != NULL) {
         printf("\nVariable: ENROLLMENT = %s", p);
+        game->timeEnrolment = (int) p;
     }
     //cast to int to put in struct game
 
@@ -57,18 +58,21 @@ void getEnvVars(GAME *game) {
 
     if(p != NULL) {
         printf("\nVariable: NPLAYERS = %s", p);
+        game->minNplayers = (int) p;
     }
 
     p = getenv("DURATION"); // Lervariável com um determinado nome
 
     if(p != NULL) {
         printf("\nVariable: DURATION = %s", p);
+        game->timeleft = (int) p;
     }
 
     p = getenv("DECREMENT"); // Lervariável com um determinado nome
 
     if(p != NULL) {
         printf("\nVariable: DECREMENT = %s", p);
+        game->timeDec = (int) p;
     }
 
 
@@ -150,8 +154,13 @@ void closeBot(int pid, GAME game) {
     }
 } 
 
-void acceptPlayer(PLAYER player, GAME *game) {
+void acceptPlayer(PLAYER player, GAME *game) {      //thread to accept players
     int flag = 0, i = 0;
+
+    if(sizeof(game->nPlayers) == 5) {
+        printf("\nThe number of players for this game has been reached\n");
+        return;
+    }
 
     for(i = 0 ; i < game->nPlayers ; i++) {
         if(strcmp(game->players[i].name, player.name) == 0) {
@@ -164,12 +173,12 @@ void acceptPlayer(PLAYER player, GAME *game) {
 
     if(flag == 0) {
         game->players[i] = player;
-        printf("\nPlayer %s [%d] was entered the game\n", player.name, i);
+        printf("\nPlayer %s [%d] entered the game\n", player.name, i);
     }
     game->nPlayers++;
 }
 
-void keyboardCmdEngine(GAME *game) {
+void keyboardCmdEngine(GAME *game) {        //thread to receive commands from the kb
     char cmd[200], str1[30], str2[30];
     
     while(1) {
@@ -309,6 +318,7 @@ void readFileMap(int level, GAME *game) {
 
 }
 
+//thread to receive the plays from the players
 void movePlayer(GAME *game, PLAYER *player){    //modify to use this function for the dynamic obstacles
     int flagWin = 0;
     switch (player->move) {

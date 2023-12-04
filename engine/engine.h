@@ -31,6 +31,7 @@ typedef struct {
     ROCK rocks[50];     //max 50
     int timeEnrolment;  //time to enroll
     int minNplayers;    //dado pela VAR de ambiente NPLAYERS
+    int timeDec;        //time devrement
     int *pipeBot;
 
 } GAME;
@@ -56,6 +57,7 @@ void getEnvVars(GAME *game);
 void movePlayer(GAME *game, PLAYER *player);
 
 void placePlayers(GAME *game);
+
 /*
 ENROLLMENT - time to enroll
 NPLAYERS - min of players
