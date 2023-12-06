@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
 		perror("Engine is not running yet");     
 		return -1;
 	}
+	player.pid = getpid();
 
 	//send player to engine to see if he can enter the game
 	int size = write (fdWrInitEngine, &player, sizeof(player));
@@ -71,13 +72,18 @@ int main(int argc, char *argv[]) {
 
 	size = read (fdRdInitEngine, &player, sizeof(player));
 
-	if(!player.accepted) {
+	if(player.accepted == 0) {	//cannot play because there are already someone with that name
 		perror("There are already someone with your name or the time to enter the game ended\n"); 
-		//unlink();
-		//close();
+		//unlink(pipeName);
+		//close(fdRdInitEngine);
 		return -1;
-	}
-
+	} else if(player.accepted == 2) {	//the player will only see the game, he cant do anything else
+		
+	} else if(player.accepted == 1) {		//normal player
+		
+	}	
+	//unlink(pipeName);
+	//close(fdRdInitEngine);
 
    initscr();  
    start_color();

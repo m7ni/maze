@@ -6,7 +6,7 @@ int main(int argc, char *argv[]) {
     PLAYERSDATA plData;
     GAME game;
     int pipeBot[2];
-    pthread_t threadACP, threadKB, threadPlayers;
+    pthread_t threadACPID, threadKBID, threadPlayersID;
     
     if(mkfifo(ENGINE_FIFO_ACP, 0666) == -1) {
         perror("\nError opening fifo or another engine is already running\n"); 
@@ -15,18 +15,25 @@ int main(int argc, char *argv[]) {
     
 
     setEnvVars();
-
     getEnvVars(&game, &acpData);
+    
     pthread_mutex_t mutexGame;
     pthread_mutex_init(&mutexGame, NULL);
     
     acpData.game = &game;
+    acpData.stop = 0;
+    acpData.mutexGame = &mutexGame;
    
-    if(pthread_create(&threadACP, NULL, &threadACP, &acpData))
+    if(pthread_create(&threadACPID, NULL, &threadACP, &acpData)) {
+        perror("Error creating threadACP");
         return -1;
+    }
+        
 
+    pthread_join(threadACPID, NULL);
+
+    /*
     createPipe(pipeBot,&game);
-    
     initGame(&game);
     
     kbData.game = &game;
@@ -34,7 +41,7 @@ int main(int argc, char *argv[]) {
     kbData.mutexGame = &mutexGame;
     
     //thread keyboard
-    if(pthread_create(&threadKB, NULL, &threadKBEngine, &kbData))
+    if(pthread_create(&threadKBID, NULL, &threadKBEngine, &kbData))
         return -1;
     
     //call placePlayers when the game starts
@@ -42,49 +49,61 @@ int main(int argc, char *argv[]) {
     plData.game = &game;
     plData.stop = 0;
     plData.mutexGame = &mutexGame;
-    if(pthread_create(&threadPlayers, NULL, &threadPlayers, &plData))
+    if(pthread_create(&threadPlayersID, NULL, &threadPlayers, &plData))
         return -1;
+    */
 }
 
 void *threadACP(void *data) {     //thread to accept players
-    int flag = 0, i = 0,n;
+    int flag = 0, i = 0,n, cont = 0;
     ACPDATA *acpData = (ACPDATA *) data;
    
 
-    while(acpData->stop){
+    while(acpData->stop == 0){
+        flag = 0;
+        char pipeName[50];
+        printf("\n\nInside thread ACP");
         PLAYER player;
-        int fd = open(ENGINE_FIFO_ACP, O_RDWR);
         
+        int fd = open(ENGINE_FIFO_ACP, O_RDWR);
         if(fd == -1) {
             perror("Error opening FIFO for accepting players");
-            return -1;
+            break;
         }
 
         int size = read(fd, &player, sizeof(PLAYER));
         if (size > 0) {
-            printf("[PIPE %s] Player: %s\n", player.name);
+            printf("\n[PIPE %s] Player: %s",ENGINE_FIFO_ACP ,player.name);
         }
         //sleep timeErolment
-        if(sizeof(acpData->game->nPlayers) != 5 || acpData->timeEnrolment != 0) {
+        if(sizeof(acpData->game->nPlayers) < 5 || acpData->timeEnrolment >= 0) {
             for(i = 0 ; i < acpData->game->nPlayers ; i++) {
                 if(strcmp(acpData->game->players[i].name, player.name) == 0) {
                     flag = 1;
-                    printf("\nThere is already a player with the same name\n");
+                    printf("\nThere is already a player with the same name");
                     player.accepted = 0;
-                } else 
-                    break;
+                }
             }
 
             if(flag == 0) {
-                acpData->game->players[i] = player;
-                printf("\nPlayer %s [%d] entered the game\n", player.name, i);
                 player.accepted = 1;
+                acpData->game->players[acpData->game->nPlayers] = player;
+                printf("\nPlayer %s [%d] entered the game", player.name, acpData->game->nPlayers); 
                 acpData->game->nPlayers++;
             }
         }else{
             player.accepted = 2;
+            acpData->game->nonPlayers[acpData->game->nNonPlayers] = player;
+            acpData->game->nNonPlayers++;
             printf("\nThe number of players for this game has been reached or time for entry as ended\n");
         }
+
+        //send player to gameui to see if he can enter the game
+        sprintf(pipeName, "GAMEUIFIFO_%d", player.pid);
+        int fdWrInitGameui = open(pipeName, O_RDWR);
+        printf("\n%s", pipeName);
+        size = write (fdWrInitGameui, &player, sizeof(player));
+        printf("\nSent: %s com o tamanho [%d]", player.name, size);
         
     }
 }
@@ -118,14 +137,14 @@ void getEnvVars(GAME *game, ACPDATA *acpData) {
     p = getenv("DURATION"); // Ler variável com um determinado nome
 
     if(p != NULL) {
-        printf("\nVariable: DURATION = %s", *p);
+        printf("\nVariable: DURATION = %s", p);
         game->timeleft = (int) *p;
     }
 
     p = getenv("DECREMENT"); // Ler variável com um determinado nome
 
     if(p != NULL) {
-        printf("\nVariable: DECREMENT = %s", p);
+        printf("\nVariable: DECREMENT = %s\n", p);
         game->timeDec = (int) *p;
     }
 }
@@ -275,16 +294,11 @@ void *threadKBEngine(void *data) {        //thread to receive commands from the 
                 readBot(kbData->game->pipeBot, kbData->game->bots[0].pid);
                 closeBot(kbData->game->bots[0].pid,  kbData->game);
                 
-            }
-            else if(strcmp(cmd, "showmap") == 0) {
-                readFileMap(1, kbData->game);
-                return;
             } 
             else if(strcmp(cmd, "exit") == 0) {
                 printf("\nVALID\n");
                 //avisar os bots com um sinal;
                 //avisar os jogadores;
-                return;
             } 
             else {
                 printf("\nINVALID");
@@ -353,8 +367,7 @@ void readFileMap(int level, GAME *game) {
 
 }
 
-
-void movePlayer(GAME *game, PLAYER *player, DOBSTACLE *obstacle){    //meter esta func bem
+void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter esta func bem
     int flagWin = 0;
     int move;
     char skin;
@@ -440,7 +453,6 @@ void *threadPlayers(void *data) {
 
     
 }
-
 
 void placePlayers(GAME *game) {
     int colRand = rand() % 39 + 1;

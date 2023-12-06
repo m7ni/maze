@@ -68,4 +68,4 @@ clean-out:
 
 clean-pipes:
 	@ echo "Pipes deixados por problemas de execução eliminados."
-	#@ rm *_w *_r arb_pipe -f
+	@ rm *_w *_r arb_pipe -f

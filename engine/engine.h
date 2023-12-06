@@ -36,19 +36,21 @@ typedef struct {
 
 typedef struct {
     int position[2];
-} DOBSTACLE;
+    char skin;
+} DINAMICOBS;
 
 typedef struct {
     char map[16][40];
     int level;      //3 levels max
     PLAYER players[5];
-    PLAYER nonPlayers[10];
     int nPlayers;
+    PLAYER nonPlayers[10];
+    int nNonPlayers;
     BOT bots[10];
     int nBots;
     float timeleft;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
     ROCK rocks[50];     //max 50
-    DOBSTACLE obstacle[20];
+    DINAMICOBS obstacle[20];
     int minNplayers;    //dado pela VAR de ambiente NPLAYERS
     int timeDec;        //time decrement VAR de ambiente
     int *pipeBot;
@@ -93,11 +95,13 @@ void setEnvVars();
 
 void getEnvVars(GAME *game, ACPDATA *acpData);
 
-void movePlayer(GAME *game, PLAYER *player, DOBSTACLE *obstacle);
+void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle);
 
 void placePlayers(GAME *game);
 
-void passLevel(GAME *game) ;
+void passLevel(GAME *game);
+
+void initGame(GAME *game);
 
 /*
 ENROLLMENT - time to enroll
