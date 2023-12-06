@@ -1,18 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <error.h>
-#include <sys/wait.h>
-#include <time.h>
-#include <ncurses.h>
 #include "gameui.h"
 
-#define ENGINE_FIFO "ENGINEFIFO"
+#define ENGINE_FIFO_ACP "ENGINE_FIFO_ACP"
 
 #define TAM 20
 
@@ -47,9 +35,7 @@ int main(int argc, char *argv[]) {
     int ch;
     const char * p;
     srand(time(NULL));  // p/ números aleatórios. não tem nada a ver com ncurses
-
     PLAYER player;
-    
     
     if(argc != 2) {
         printf("\n[ERROR] Invalid number of arguments -> Sintax: <./gameui NAME>\n");
@@ -59,7 +45,7 @@ int main(int argc, char *argv[]) {
     
     strcpy(player.name, argv[1]);
 
-	int fdWrInitEngine = open(ENGINE_FIFO, O_WRONLY);   //Abrir o fifo em modo de escrita bloqueante
+	int fdWrInitEngine = open(ENGINE_FIFO_ACP, O_WRONLY);   //Abrir o fifo em modo de escrita bloqueante
 	if(fdWrInitEngine == -1) {
 		perror("Engine is not running yet");     
 		return -1;
@@ -69,13 +55,13 @@ int main(int argc, char *argv[]) {
 	int size = write (fdWrInitEngine, &player, sizeof(player));
 	printf("\nSent: %s com o tamanho [%d]", player.name, size);
 
-
     //receive response from engine to see if the player can enter the game
 	sprintf(pipeName, "GAMEUIFIFO_%d", getpid());
         if(mkfifo(pipeName, 0666) == -1) {
         perror("\nError creating gameui fifo\n");
         return -1;
     }
+
     int fdRdInitEngine = open(pipeName, O_RDWR);
     if(fdRdInitEngine == -1) {
         perror("Error openning gameui fifo\n"); 
@@ -84,6 +70,7 @@ int main(int argc, char *argv[]) {
 	size = 0;
 
 	size = read (fdRdInitEngine, &player, sizeof(player));
+
 	if(!player.accepted) {
 		perror("There are already someone with your name or the time to enter the game ended\n"); 
 		//unlink();

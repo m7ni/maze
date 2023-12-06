@@ -1,7 +1,19 @@
 #ifndef GAMEUI_H
 #define GAMEUI_H
 #include "../utils/utils.h"
+
 #include <ncurses.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <signal.h>
+#include <error.h>
+#include <sys/wait.h>
+#include <time.h>
 
 typedef struct {
     char name[30];

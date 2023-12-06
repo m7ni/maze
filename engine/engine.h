@@ -3,9 +3,24 @@
 
 #include "../utils/utils.h"
 #include "../gameui/gameui.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <signal.h>
+#include <error.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <pthread.h>
 
 #define BUFFER_SIZE 256
 
+#define ENGINE_FIFO_ACP "ENGINE_FIFO_ACP"
+
+#define TAM 20
 typedef struct {
     int pid;
     int interval;
@@ -16,35 +31,59 @@ typedef struct {
 typedef struct {
     int position[2];
     int duration;   //time that the rock stays in the maze
+    char skin;
 } ROCK;
+
+typedef struct {
+    int position[2];
+} DOBSTACLE;
 
 typedef struct {
     char map[16][40];
     int level;      //3 levels max
     PLAYER players[5];
-    int spotsleft;  //spots left to enter the game
+    PLAYER nonPlayers[10];
     int nPlayers;
-    char command[30];
     BOT bots[10];
     int nBots;
     float timeleft;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
     ROCK rocks[50];     //max 50
-    int timeEnrolment;  //time to enroll
+    DOBSTACLE obstacle[20];
     int minNplayers;    //dado pela VAR de ambiente NPLAYERS
-    int timeDec;        //time devrement
+    int timeDec;        //time decrement VAR de ambiente
     int *pipeBot;
-
 } GAME;
 
-void createPipe(int *pipeBot);
+typedef struct {
+    GAME *game;
+    pthread_mutex_t *mutexGame;
+    int stop;
+} KBDATA;
+
+typedef struct {
+    GAME *game;
+    pthread_mutex_t *mutexGame;
+    int stop;
+    int timeEnrolment; //time to enroll VAR de ambiente
+} ACPDATA;
+
+typedef struct {
+    GAME *game;
+    pthread_mutex_t *mutexGame;
+    int stop;
+} PLAYERSDATA;
+
+void createPipe(int *pipeBot, GAME *game);
 
 int launchBot(int *pipeBot, GAME *game);
 
 void closeBot(int pid, GAME *game);
 
-void acceptPlayer(PLAYER player, GAME *game);
+void *threadACP(void *data);
 
-void keyboardCmdEngine(GAME *game);
+void *threadKBEngine(void *data);
+
+void *threadPlayers(void *data);
 
 void readBot(int *pipeBot, int pid);
 
@@ -52,11 +91,13 @@ void readFileMap(int level, GAME *game);
 
 void setEnvVars();
 
-void getEnvVars(GAME *game);
+void getEnvVars(GAME *game, ACPDATA *acpData);
 
-void movePlayer(GAME *game, PLAYER *player);
+void movePlayer(GAME *game, PLAYER *player, DOBSTACLE *obstacle);
 
 void placePlayers(GAME *game);
+
+void passLevel(GAME *game) ;
 
 /*
 ENROLLMENT - time to enroll

@@ -1,88 +1,138 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <error.h>
-#include <sys/wait.h>
-#include <time.h>
-
 #include "engine.h"
 
-#define ENGINE_FIFO "ENGINEFIFO"
-
-#define TAM 20
-
 int main(int argc, char *argv[]) {
+    ACPDATA acpData;
+    KBDATA kbData;
+    PLAYERSDATA plData;
     GAME game;
-
-
-    if(mkfifo(ENGINE_FIFO, 0666) == -1) {
+    int pipeBot[2];
+    pthread_t threadACP, threadKB, threadPlayers;
+    
+    if(mkfifo(ENGINE_FIFO_ACP, 0666) == -1) {
         perror("\nError opening fifo or another engine is already running\n"); 
         return -1;
     }   
     
-    int pipeBot[2];
-    createPipe(pipeBot);
+
     setEnvVars();
-    getEnvVars(&game);
-    game.pipeBot = pipeBot;
 
+    getEnvVars(&game, &acpData);
+    pthread_mutex_t mutexGame;
+    pthread_mutex_init(&mutexGame, NULL);
     
-    keyboardCmdEngine(&game);
+    acpData.game = &game;
+   
+    if(pthread_create(&threadACP, NULL, &threadACP, &acpData))
+        return -1;
 
+    createPipe(pipeBot,&game);
+    
+    initGame(&game);
+    
+    kbData.game = &game;
+    kbData.stop = 0;
+    kbData.mutexGame = &mutexGame;
+    
+    //thread keyboard
+    if(pthread_create(&threadKB, NULL, &threadKBEngine, &kbData))
+        return -1;
+    
+    //call placePlayers when the game starts
 
+    plData.game = &game;
+    plData.stop = 0;
+    plData.mutexGame = &mutexGame;
+    if(pthread_create(&threadPlayers, NULL, &threadPlayers, &plData))
+        return -1;
+}
+
+void *threadACP(void *data) {     //thread to accept players
+    int flag = 0, i = 0,n;
+    ACPDATA *acpData = (ACPDATA *) data;
+   
+
+    while(acpData->stop){
+        PLAYER player;
+        int fd = open(ENGINE_FIFO_ACP, O_RDWR);
+        
+        if(fd == -1) {
+            perror("Error opening FIFO for accepting players");
+            return -1;
+        }
+
+        int size = read(fd, &player, sizeof(PLAYER));
+        if (size > 0) {
+            printf("[PIPE %s] Player: %s\n", player.name);
+        }
+        //sleep timeErolment
+        if(sizeof(acpData->game->nPlayers) != 5 || acpData->timeEnrolment != 0) {
+            for(i = 0 ; i < acpData->game->nPlayers ; i++) {
+                if(strcmp(acpData->game->players[i].name, player.name) == 0) {
+                    flag = 1;
+                    printf("\nThere is already a player with the same name\n");
+                    player.accepted = 0;
+                } else 
+                    break;
+            }
+
+            if(flag == 0) {
+                acpData->game->players[i] = player;
+                printf("\nPlayer %s [%d] entered the game\n", player.name, i);
+                player.accepted = 1;
+                acpData->game->nPlayers++;
+            }
+        }else{
+            player.accepted = 2;
+            printf("\nThe number of players for this game has been reached or time for entry as ended\n");
+        }
+        
+    }
 }
 
 void setEnvVars() {
+    printf("Created");
     setenv("ENROLLMENT", "60", 1); // Create the variable, overwriting if exist (1) 
     setenv("NPLAYERS", "2", 1); 
     setenv("DURATION", "60", 1); 
     setenv("DECREMENT", "5", 1); 
 }
 
-void getEnvVars(GAME *game) {
+void getEnvVars(GAME *game, ACPDATA *acpData) {
     char *p = NULL;
 
-    p = getenv("ENROLLMENT"); // Lervariável com um determinado nome
+    p = getenv("ENROLLMENT"); // Ler variável com um determinado nome
 
     if(p != NULL) {
         printf("\nVariable: ENROLLMENT = %s", p);
-        game->timeEnrolment = (int) *p;
+        acpData->timeEnrolment = (int) *p;
     }
     //cast to int to put in struct game
 
-    p = getenv("NPLAYERS"); // Lervariável com um determinado nome
+    p = getenv("NPLAYERS"); // Ler variável com um determinado nome
 
     if(p != NULL) {
         printf("\nVariable: NPLAYERS = %s", p);
         game->minNplayers = (int) *p;
     }
 
-    p = getenv("DURATION"); // Lervariável com um determinado nome
+    p = getenv("DURATION"); // Ler variável com um determinado nome
 
     if(p != NULL) {
         printf("\nVariable: DURATION = %s", *p);
         game->timeleft = (int) *p;
     }
 
-    p = getenv("DECREMENT"); // Lervariável com um determinado nome
+    p = getenv("DECREMENT"); // Ler variável com um determinado nome
 
     if(p != NULL) {
         printf("\nVariable: DECREMENT = %s", p);
         game->timeDec = (int) *p;
     }
-
-
 }
 
-void createPipe(int *pipeBot){
+void createPipe(int *pipeBot, GAME *game){
     pipe(pipeBot);
-
-
+    game->pipeBot = pipeBot;
 }
 
 int launchBot(int *pipeBot, GAME *game){
@@ -155,34 +205,18 @@ void closeBot(int pid, GAME *game) {
     }
 } 
 
-void acceptPlayer(PLAYER player, GAME *game) {      //thread to accept players
-    int flag = 0, i = 0;
-
-    if(sizeof(game->nPlayers) == 5) {
-        printf("\nThe number of players for this game has been reached\n");
-        return;
-    }
-
-    for(i = 0 ; i < game->nPlayers ; i++) {
-        if(strcmp(game->players[i].name, player.name) == 0) {
-            flag = 1;
-            printf("\nThere are already a player with that name\n");
-            exit(1);
-        } else 
-            break;
-    }
-
-    if(flag == 0) {
-        game->players[i] = player;
-        printf("\nPlayer %s [%d] entered the game\n", player.name, i);
-    }
-    game->nPlayers++;
+void initGame(GAME *game) {
+    game->level = 1;
+    game->nPlayers = 0;
+    game->nBots = 0;
+    readFileMap(1, game);
 }
-
-void keyboardCmdEngine(GAME *game) {        //thread to receive commands from the kb
+ 
+void *threadKBEngine(void *data) {        //thread to receive commands from the kb
+    KBDATA *kbData = (KBDATA *) data;
     char cmd[200], str1[30], str2[30];
     
-    while(1) {
+    while(kbData->stop == 0) {
         int flag = 0;
         printf("\nCommand: ");
         fflush(stdout);
@@ -191,9 +225,9 @@ void keyboardCmdEngine(GAME *game) {        //thread to receive commands from th
         
         
         if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0) {
-            for(int i = 0 ; i < game->nPlayers ; i++) {
-                if(strcmp(game->players[i].name, str2)) {
-                    printf("\nPlayer %s has been kicked\n", game->players[i].name);
+            for(int i = 0 ; i < kbData->game->nPlayers ; i++) {
+                if(strcmp(kbData->game->players[i].name, str2)) {
+                    printf("\nPlayer %s has been kicked\n", kbData->game->players[i].name);
                     //send signal to player and remove him from the game
                     printf("\nVALID");
                     flag = 1;
@@ -208,20 +242,20 @@ void keyboardCmdEngine(GAME *game) {        //thread to receive commands from th
             cmd[ strlen( cmd ) - 1 ] = '\0';
             if(strcmp(cmd, "users") == 0) {
                 printf("\nPlayers:\n");
-                for(int i = 0 ; i < game->nPlayers ; i++) {
-                    printf("\tPlayer %s\n", game->players[i].name);
+                for(int i = 0 ; i < kbData->game->nPlayers ; i++) {
+                    printf("\tPlayer %s\n", kbData->game->players[i].name);
                 }
                 printf("\nVALID");
             } else if(strcmp(cmd, "bots") == 0) {
                 printf("\nVALID");
-                if(game->nBots == 0) {
+                if(kbData->game->nBots == 0) {
                     printf("\nThere are no bots yet\n");
                     break;
                 }
                 printf("\nBots:\n");
-                for(int i = 0 ; i < game->nBots ; i++) {
+                for(int i = 0 ; i < kbData->game->nBots ; i++) {
                     printf("Bot %d with PID[%d]\t interval [%d]\t duration [%d]", 
-                    i, game->bots[i].pid, game->bots[i].interval, game->bots[i].duration);
+                    i, kbData->game->bots[i].pid, kbData->game->bots[i].interval, kbData->game->bots[i].duration);
                 }
             } 
             else if(strcmp(cmd, "bmov") == 0) {
@@ -237,13 +271,13 @@ void keyboardCmdEngine(GAME *game) {        //thread to receive commands from th
 
             } else if(strcmp(cmd, "bot") == 0) {
                 printf("\nVALID");
-                game->bots[0].pid = launchBot(game->pipeBot, game);
-                readBot(game->pipeBot, game->bots[0].pid);
-                closeBot(game->bots[0].pid,  game);
+                kbData->game->bots[0].pid = launchBot(kbData->game->pipeBot, kbData->game);
+                readBot(kbData->game->pipeBot, kbData->game->bots[0].pid);
+                closeBot(kbData->game->bots[0].pid,  kbData->game);
                 
             }
             else if(strcmp(cmd, "showmap") == 0) {
-                readFileMap(1, game);
+                readFileMap(1, kbData->game);
                 return;
             } 
             else if(strcmp(cmd, "exit") == 0) {
@@ -319,13 +353,25 @@ void readFileMap(int level, GAME *game) {
 
 }
 
-//thread to receive the plays from the players
-void movePlayer(GAME *game, PLAYER *player){    //modify to use this function for the dynamic obstacles
+
+void movePlayer(GAME *game, PLAYER *player, DOBSTACLE *obstacle){    //meter esta func bem
     int flagWin = 0;
-    switch (player->move) {
+    int move;
+    char skin;
+
+    if(player == NULL) {  //dynamic obstacle
+        srand(time(NULL));
+        move = rand() % 4 + 1;
+        skin = 'O';
+    } else {
+        move = player->move;
+        skin = player->skin;
+    }
+
+    switch (move) {
         case 0:     //left
             if(game->map[player->position[0]][player->position[1] - 1] == ' ') {
-                game->map[player->position[0]][player->position[1] - 1] == player->skin;
+                game->map[player->position[0]][player->position[1] - 1] == skin;
                 game->map[player->position[0]][player->position[1]] == ' ';
 
                 player->position[1] = player->position[1] - 1;
@@ -337,7 +383,7 @@ void movePlayer(GAME *game, PLAYER *player){    //modify to use this function fo
                     flagWin = 1;
                 }
 
-                game->map[player->position[0] - 1][player->position[1]] == player->skin;
+                game->map[player->position[0] - 1][player->position[1]] == skin;
                 game->map[player->position[0]][player->position[1]] == ' ';
 
                 player->position[0] = player->position[0] - 1;
@@ -349,7 +395,7 @@ void movePlayer(GAME *game, PLAYER *player){    //modify to use this function fo
             break;
         case 2:     //right
             if(game->map[player->position[0]][player->position[1] + 1] == ' ') {
-                game->map[player->position[0]][player->position[1] + 1] == player->skin;
+                game->map[player->position[0]][player->position[1] + 1] == skin;
                 game->map[player->position[0]][player->position[1]] == ' ';
 
                 player->position[1] = player->position[1] + 1;
@@ -357,7 +403,7 @@ void movePlayer(GAME *game, PLAYER *player){    //modify to use this function fo
             break;
         case 3:     //down
             if(game->map[player->position[0] + 1][player->position[1]] == ' ') {
-                game->map[player->position[0] + 1][player->position[1]] == player->skin;
+                game->map[player->position[0] + 1][player->position[1]] == skin;
                 game->map[player->position[0]][player->position[1]] == ' ';
 
                 player->position[0] = player->position[0] + 1;
@@ -365,6 +411,36 @@ void movePlayer(GAME *game, PLAYER *player){    //modify to use this function fo
             break;
     }
 }
+
+void *threadPlayers(void *data) {
+    PLAYERSDATA *plData = (PLAYERSDATA *) data;
+
+    PLAYER player;
+
+    while(plData->stop) {
+        //read
+
+        if(!player.accepted)
+            continue;
+
+        if(player.move == -1) {     //player sent a command
+
+        } else {
+
+            //send to function the player from game (game.player[i])
+            for(int i = 0 ; i < plData->game->nPlayers ; i++) {
+                if(strcmp(plData->game->players[i].name, player.name) == 0) {
+                    movePlayer(plData->game, &plData->game->players[i], NULL);
+                    break;
+                }
+            }
+        }
+        //send to all players the new game
+    }
+
+    
+}
+
 
 void placePlayers(GAME *game) {
     int colRand = rand() % 39 + 1;
@@ -378,4 +454,10 @@ void placePlayers(GAME *game) {
             game->players[i].position[1] = colRand;
         }
     }
+}
+
+void passLevel(GAME *game) {
+    game->level += 1;
+    readFileMap(game->level, game);
+    placePlayers(game);
 }
