@@ -66,6 +66,6 @@ clean-exe:
 clean-out:
 	@ rm ./*/*.out -f
 
-clean-pipes:
-	@ echo "Pipes deixados por problemas de execução eliminados."
-	@ rm *_w *_r arb_pipe -f
+clean-pipes: 
+	@ rm FIFO* -f
+	

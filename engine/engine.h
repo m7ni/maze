@@ -15,10 +15,9 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <pthread.h>
+#include <errno.h>
 
 #define BUFFER_SIZE 256
-
-#define ENGINE_FIFO_ACP "ENGINE_FIFO_ACP"
 
 #define TAM 20
 typedef struct {

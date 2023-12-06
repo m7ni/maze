@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
     int pipeBot[2];
     pthread_t threadACPID, threadKBID, threadPlayersID;
     
-    if(mkfifo(ENGINE_FIFO_ACP, 0666) == -1) {
+    if(mkfifo(FIFO_ENGINE_ACP, 0666) == -1) {
         perror("\nError opening fifo or another engine is already running\n"); 
         return -1;
     }   
@@ -31,7 +31,9 @@ int main(int argc, char *argv[]) {
         
 
     pthread_join(threadACPID, NULL);
-
+    
+    void *ret;
+    pthread_join(threadACPID,&ret);
     /*
     createPipe(pipeBot,&game);
     initGame(&game);
@@ -58,14 +60,13 @@ void *threadACP(void *data) {     //thread to accept players
     int flag = 0, i = 0,n, cont = 0;
     ACPDATA *acpData = (ACPDATA *) data;
    
-
     while(acpData->stop == 0){
+        PLAYER player;
         flag = 0;
         char pipeName[50];
         printf("\n\nInside thread ACP");
-        PLAYER player;
         
-        int fd = open(ENGINE_FIFO_ACP, O_RDWR);
+        int fd = open(FIFO_ENGINE_ACP, O_RDWR);
         if(fd == -1) {
             perror("Error opening FIFO for accepting players");
             break;
@@ -73,37 +74,57 @@ void *threadACP(void *data) {     //thread to accept players
 
         int size = read(fd, &player, sizeof(PLAYER));
         if (size > 0) {
-            printf("\n[PIPE %s] Player: %s",ENGINE_FIFO_ACP ,player.name);
+            printf("\n[PIPE %s] Player: %s",FIFO_ENGINE_ACP ,player.name);
         }
+        pthread_mutex_lock(acpData->mutexGame);
         //sleep timeErolment
         if(sizeof(acpData->game->nPlayers) < 5 || acpData->timeEnrolment >= 0) {
             for(i = 0 ; i < acpData->game->nPlayers ; i++) {
                 if(strcmp(acpData->game->players[i].name, player.name) == 0) {
                     flag = 1;
-                    printf("\nThere is already a player with the same name");
                     player.accepted = 0;
+
+                    printf("\nThere is already a player with the same name");
+
                 }
             }
 
             if(flag == 0) {
                 player.accepted = 1;
                 acpData->game->players[acpData->game->nPlayers] = player;
-                printf("\nPlayer %s [%d] entered the game", player.name, acpData->game->nPlayers); 
                 acpData->game->nPlayers++;
+
+                printf("\nPlayer %s [%d] entered the game", player.name, acpData->game->nPlayers-1); 
+
             }
         }else{
             player.accepted = 2;
             acpData->game->nonPlayers[acpData->game->nNonPlayers] = player;
             acpData->game->nNonPlayers++;
+
             printf("\nThe number of players for this game has been reached or time for entry as ended\n");
         }
+               
+        pthread_mutex_unlock(acpData->mutexGame);
 
         //send player to gameui to see if he can enter the game
-        sprintf(pipeName, "GAMEUIFIFO_%d", player.pid);
-        int fdWrInitGameui = open(pipeName, O_RDWR);
-        printf("\n%s", pipeName);
+        sprintf(pipeName, FIFO_GAMEUI, player.pid);
+        int fdWrInitGameui = open(pipeName, O_WRONLY);
+        if (fdWrInitGameui == -1) {
+            perror("open");
+            fprintf(stderr, "Error opening %s for writing: %d\n", pipeName, errno);
+        }
+        // printf("\n%s", pipeName);
         size = write (fdWrInitGameui, &player, sizeof(player));
-        printf("\nSent: %s com o tamanho [%d]", player.name, size);
+        if (size == -1) {
+            perror("write");
+            // Optionally, you can also print the specific error using errno
+            fprintf(stderr, "Error writing to fdWrInitGameui: %d\n", errno);
+            // Handle the error as needed
+        } else {
+            printf("Successfully wrote %d bytes\n", size);
+        }
+        // printf("\nSent: %s com o tamanho [%d]", player.name, size);
         
     }
 }

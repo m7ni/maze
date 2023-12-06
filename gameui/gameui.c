@@ -1,7 +1,5 @@
 #include "gameui.h"
 
-#define ENGINE_FIFO_ACP "ENGINE_FIFO_ACP"
-
 #define TAM 20
 
 
@@ -45,28 +43,37 @@ int main(int argc, char *argv[]) {
     
     strcpy(player.name, argv[1]);
 
-	int fdWrInitEngine = open(ENGINE_FIFO_ACP, O_WRONLY);   //Abrir o fifo em modo de escrita bloqueante
+	int fdWrInitEngine = open(FIFO_ENGINE_ACP, O_WRONLY);   //Abrir o fifo em modo de escrita bloqueante
 	if(fdWrInitEngine == -1) {
 		perror("Engine is not running yet");     
 		return -1;
 	}
 	player.pid = getpid();
-
-	//send player to engine to see if he can enter the game
-	int size = write (fdWrInitEngine, &player, sizeof(player));
-	printf("\nSent: %s com o tamanho [%d]", player.name, size);
-
-    //receive response from engine to see if the player can enter the game
-	sprintf(pipeName, "GAMEUIFIFO_%d", getpid());
-        if(mkfifo(pipeName, 0666) == -1) {
-        perror("\nError creating gameui fifo\n");
-        return -1;
+if(mkfifo(pipeName, 0666) == -1) {
+		perror("\nError creating gameui fifo\n");
+		return -1;
     }
 
     int fdRdInitEngine = open(pipeName, O_RDWR);
     if(fdRdInitEngine == -1) {
         perror("Error openning gameui fifo\n"); 
     }
+	//send player to engine to see if he can enter the game
+	int size = write (fdWrInitEngine, &player, sizeof(player));
+	printf("\nSent: %s com o tamanho [%d]", player.name, size);
+
+    //receive response from engine to see if the player can enter the game
+	sprintf(pipeName, FIFO_GAMEUI, getpid());
+
+	// if(mkfifo(pipeName, 0666) == -1) {
+	// 	perror("\nError creating gameui fifo\n");
+	// 	return -1;
+    // }
+
+    // int fdRdInitEngine = open(pipeName, O_RDWR);
+    // if(fdRdInitEngine == -1) {
+    //     perror("Error openning gameui fifo\n"); 
+    // }
 
 	size = 0;
 

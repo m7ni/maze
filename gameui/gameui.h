@@ -15,6 +15,8 @@
 #include <sys/wait.h>
 #include <time.h>
 
+
+
 typedef struct {
     char name[30];
     int move;   //0 - left, 1 - up, 2 - right, 3 - down
@@ -25,6 +27,7 @@ typedef struct {
     char message[100];
     int accepted;
     int pid;
+    char pname[30];
 } PLAYER;
 
 void keyboardCmdGameUI(PLAYER player, WINDOW *window);
