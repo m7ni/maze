@@ -64,7 +64,7 @@ void *threadACP(void *data) {     //thread to accept players
         if (size > 0) {
             printf("[PIPE %s] Player: %s\n", player.name);
         }
-        //sleep timeErolment/
+        //sleep timeErolment
         if(sizeof(acpData->game->nPlayers) != 5 || acpData->timeEnrolment != 0) {
             for(i = 0 ; i < acpData->game->nPlayers ; i++) {
                 if(strcmp(acpData->game->players[i].name, player.name) == 0) {
