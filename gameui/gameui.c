@@ -49,7 +49,10 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	player.pid = getpid();
-if(mkfifo(pipeName, 0666) == -1) {
+
+	sprintf(pipeName, FIFO_GAMEUI, getpid());
+
+	if(mkfifo(pipeName, 0666) == -1) {
 		perror("\nError creating gameui fifo\n");
 		return -1;
     }
@@ -58,22 +61,13 @@ if(mkfifo(pipeName, 0666) == -1) {
     if(fdRdInitEngine == -1) {
         perror("Error openning gameui fifo\n"); 
     }
+	
 	//send player to engine to see if he can enter the game
 	int size = write (fdWrInitEngine, &player, sizeof(player));
 	printf("\nSent: %s com o tamanho [%d]", player.name, size);
 
     //receive response from engine to see if the player can enter the game
-	sprintf(pipeName, FIFO_GAMEUI, getpid());
-
-	// if(mkfifo(pipeName, 0666) == -1) {
-	// 	perror("\nError creating gameui fifo\n");
-	// 	return -1;
-    // }
-
-    // int fdRdInitEngine = open(pipeName, O_RDWR);
-    // if(fdRdInitEngine == -1) {
-    //     perror("Error openning gameui fifo\n"); 
-    // }
+	
 
 	size = 0;
 
