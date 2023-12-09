@@ -47,11 +47,13 @@ typedef struct {
     int nNonPlayers;
     BOT bots[10];
     int nBots;
-    float timeleft;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
+    float time;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
     ROCK rocks[50];     //max 50
     DINAMICOBS obstacle[20];
     int minNplayers;    //dado pela VAR de ambiente NPLAYERS
     int timeDec;        //time decrement VAR de ambiente
+    int start;
+    int timeleft;       //time to enter the game and time of the
     int *pipeBot;
 } GAME;
 
@@ -65,8 +67,14 @@ typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
     int stop;
-    int timeEnrolment; //time to enroll VAR de ambiente
+    int timeEnrolment;
 } ACPDATA;
+
+typedef struct {
+    GAME *game;
+    pthread_mutex_t *mutexGame;
+    int stop;
+} CLKDATA;
 
 typedef struct {
     GAME *game;
@@ -85,6 +93,8 @@ void *threadACP(void *data);
 void *threadKBEngine(void *data);
 
 void *threadPlayers(void *data);
+
+void *threadClock(void *data);
 
 void readBot(int *pipeBot, int pid);
 

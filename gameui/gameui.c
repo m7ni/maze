@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
 
 	int fdWrInitEngine = open(FIFO_ENGINE_ACP, O_WRONLY);   //Abrir o fifo em modo de escrita bloqueante
 	if(fdWrInitEngine == -1) {
-		perror("Engine is not running yet");     
+		perror("Engine is not running yet\n");     
 		return -1;
 	}
 	player.pid = getpid();
@@ -62,9 +62,9 @@ int main(int argc, char *argv[]) {
         perror("Error openning gameui fifo\n"); 
     }
 	
-	//send player to engine to see if he can enter the game
+	//send player to engine to see if he can enter the gamemm
 	int size = write (fdWrInitEngine, &player, sizeof(player));
-	printf("\nSent: %s com o tamanho [%d]", player.name, size);
+	printf("Sent: %s com o tamanho [%d]\n", player.name, size);
 
     //receive response from engine to see if the player can enter the game
 	
@@ -74,14 +74,15 @@ int main(int argc, char *argv[]) {
 	size = read (fdRdInitEngine, &player, sizeof(player));
 
 	if(player.accepted == 0) {	//cannot play because there are already someone with that name
-		perror("There are already someone with your name or the time to enter the game ended\n"); 
+		printf("There are already someone with your name or the time to enter the game ended\n"); 
 		//unlink(pipeName);
 		//close(fdRdInitEngine);
 		return -1;
 	} else if(player.accepted == 2) {	//the player will only see the game, he cant do anything else
+		printf("Time to enroll has ended, you will only be able to watch\n"); 
 		
 	} else if(player.accepted == 1) {		//normal player
-		
+		printf("Normal player\n"); 
 	}	
 	//unlink(pipeName);
 	//close(fdRdInitEngine);
@@ -165,7 +166,7 @@ void keyboardCmdGameUI(PLAYER player, WINDOW *window) {
 	wscanw(window," %200[^\n]", cmd);
 	//sprintf(msg,"output:[%s]", cmd);
 
-	//fgets(cmd, sizeof(cmd), stdin);
+	//fgets(cmd, sizeof(cmd), stdin);asf/test
 	
 	if (sscanf(cmd, "%s %s %[^\n]", str1, str2, str3) == 3 && strcmp(str1, "msg") == 0) {
 		strcpy(player.command, str1);
