@@ -3,6 +3,6 @@
 
 #define FIFO_ENGINE_ACP "FIFO_ENGINE_ACP"
 #define FIFO_GAMEUI "FIFO_GAMEUI_%d"
-
+#define FIFO_PRIVATE_MSG "FIFO_PRIVATE_MSG_%d"
 
 #endif

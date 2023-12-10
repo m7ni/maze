@@ -3,6 +3,7 @@
 
 #include "../utils/utils.h"
 #include "../gameui/gameui.h"
+#include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,13 @@ typedef struct {
     char skin;
 } DINAMICOBS;
 
+/*
+typedef struct {
+    char playerSent[50];
+    char playerReceive[50];
+    char msg[100];
+} MESSAGE;
+*/
 typedef struct {
     char map[16][40];
     int level;      //3 levels max
@@ -60,27 +68,29 @@ typedef struct {
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int stop;
+    int *stop;
 } KBDATA;
 
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int stop;
+    int *stop;
     int timeEnrolment;
 } ACPDATA;
 
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int stop;
+    int *stop;
 } CLKDATA;
 
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int stop;
+    int *stop;
 } PLAYERSDATA;
+
+
 
 void createPipe(int *pipeBot, GAME *game);
 

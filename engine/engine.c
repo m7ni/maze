@@ -9,6 +9,7 @@ int main(int argc, char *argv[]) {
     int pipeBot[2],timeEnrolment;
     pthread_t threadACPID, threadKBID, threadPlayersID, threadClockID;
     pthread_mutex_t mutexGame;
+    int stop = 0;
 
     if(mkfifo(FIFO_ENGINE_ACP, 0666) == -1) {
         perror("Error opening fifo or another engine is already running\n"); 
@@ -21,7 +22,7 @@ int main(int argc, char *argv[]) {
     pthread_mutex_init(&mutexGame, NULL);
     
     clkData.game = &game;
-    clkData.stop = 0;
+    clkData.stop = &stop;
     clkData.mutexGame = &mutexGame;
     
    
@@ -31,7 +32,7 @@ int main(int argc, char *argv[]) {
     }
 
     acpData.game = &game;
-    acpData.stop = 0;
+    acpData.stop = &stop;
     acpData.mutexGame = &mutexGame;
     
     initGame(&game);
@@ -126,6 +127,7 @@ void *threadACP(void *data) {     //thread to accept players
 
             if(flag == 0) {
                 player.accepted = 1;
+                player.skin = acpData->game->nPlayers;
                 acpData->game->players[acpData->game->nPlayers] = player;
                 acpData->game->nPlayers++;
 
@@ -316,6 +318,8 @@ void *threadKBEngine(void *data) {        //thread to receive commands from the 
             //mutex unlock
             if(flag == 0) {
                 printf("\nThere is no player with the name %s\n", str2);
+            } else {
+                //kickPlayer();
             }
         } else {
             cmd[ strlen( cmd ) - 1 ] = '\0';
@@ -505,15 +509,32 @@ void *threadPlayers(void *data) {
     PLAYERSDATA *plData = (PLAYERSDATA *) data;
 
     PLAYER player;
+    MESSAGE msg;
 
-    while(plData->stop) {
-        //read the the player
+    while(plData->stop == 0) {
+        //read the player ENGINE FIFO GAME
 
         if(!player.accepted)
             continue;
 
-        if(player.move == -1) {     //player sent a command
+        if(player.move == -2) {     //player sent a msg
+            strcpy(msg.msg, player.message);
+            strcpy(msg.playerNameSentmsg, player.name);
 
+            for(int i = 0 ; i < plData->game->nPlayers; i++) {
+                if(strcmp(player.personNameMessage, plData->game->players[i]) == 0) {
+                    sprintf(msg.pipeName, FIFO_PRIVATE_MSG, plData->game->players[i].pid);
+                    //send to the player the struct message
+                    break;
+                }
+            }
+            
+        } else if(player.move == -1) {     //player sent a command
+            if(strcmp(player.command, "players")) {
+                
+            } else if(strcmp(player.command, "exit") {
+                //kickPlayer();
+            }
         } else {
             //send to function the player from game (game.player[i])
             for(int i = 0 ; i < plData->game->nPlayers ; i++) {
@@ -522,8 +543,9 @@ void *threadPlayers(void *data) {
                     break;
                 }
             }
+            //send to all players the new game
         }
-        //send to all players the new game
+        
     }
 
     pthread_exit(NULL);
