@@ -11,6 +11,6 @@
 
 #define TAM 20
 
-int esporra() {
+int utils() {
     int i;
 }

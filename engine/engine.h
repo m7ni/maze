@@ -21,49 +21,6 @@
 #define BUFFER_SIZE 256
 
 #define TAM 20
-typedef struct {
-    int pid;
-    int interval;
-    int duration;
-
-} BOT;
-
-typedef struct {
-    int position[2];
-    int duration;   //time that the rock stays in the maze
-    char skin;
-} ROCK;
-
-typedef struct {
-    int position[2];
-    char skin;
-} DINAMICOBS;
-
-/*
-typedef struct {
-    char playerSent[50];
-    char playerReceive[50];
-    char msg[100];
-} MESSAGE;
-*/
-typedef struct {
-    char map[16][40];
-    int level;      //3 levels max
-    PLAYER players[5];
-    int nPlayers;
-    PLAYER nonPlayers[10];
-    int nNonPlayers;
-    BOT bots[10];
-    int nBots;
-    float time;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
-    ROCK rocks[50];     //max 50
-    DINAMICOBS obstacle[20];
-    int minNplayers;    //dado pela VAR de ambiente NPLAYERS
-    int timeDec;        //time decrement VAR de ambiente
-    int start;
-    int timeleft;       //time to enter the game and time of the
-    int *pipeBot;
-} GAME;
 
 typedef struct {
     GAME *game;

@@ -21,22 +21,23 @@ int main(int argc, char *argv[]) {
     
     pthread_mutex_init(&mutexGame, NULL);
     
-    clkData.game = &game;
-    clkData.stop = &stop;
-    clkData.mutexGame = &mutexGame;
     
-   
-    if(pthread_create(&threadACPID, NULL, &threadACP, &acpData)) {
-        perror("Error creating threadACP\n");
-        return -1;
-    }
-
     acpData.game = &game;
     acpData.stop = &stop;
     acpData.mutexGame = &mutexGame;
     
+    
+    if(pthread_create(&threadACPID, NULL, &threadACP, &acpData)) {
+        perror("Error creating threadACP\n");
+        return -1;
+    }
+    printf("\nThread create ACP");
+    clkData.game = &game;
+    clkData.stop = &stop;
+    clkData.mutexGame = &mutexGame;
+    
     initGame(&game);
-
+    
     if(pthread_create(&threadClockID, NULL, &threadClock, &clkData)) {
         perror("Error creating threadClock\n");
         return -1;
@@ -69,6 +70,7 @@ int main(int argc, char *argv[]) {
 
 void *threadClock(void* data){
     CLKDATA *clkData = (CLKDATA *) data;
+    printf("Inside threadClock\n");
 
     while(clkData->stop == 0) {
         sleep(1);
@@ -86,7 +88,7 @@ void *threadClock(void* data){
 
         //mutex unlock
     }
-    
+    printf("Outside threadClock\n");
     pthread_exit(NULL);
 }
 
@@ -101,16 +103,17 @@ void *threadACP(void *data) {     //thread to accept players
         //function to exit everything
     }
 
-    while(acpData->stop == 0){
+    while(acpData->stop){
         PLAYER player;
         flag = 0;
         char pipeName[50];
         printf("Inside thread ACP\n");
-        
+         
         int size = read(fd, &player, sizeof(PLAYER));
         if (size > 0) {
             printf("[PIPE %s] Player: %s\n",FIFO_ENGINE_ACP ,player.name);
         }
+        
         //mutex lock
         pthread_mutex_lock(acpData->mutexGame);
         //sleep timeErolment
@@ -164,6 +167,7 @@ void *threadACP(void *data) {     //thread to accept players
         // printf("\nSent: %s com o tamanho [%d]", player.name, size);
         
     }
+    printf("Outside threadACP\n");
     pthread_exit(NULL);
 }
 
@@ -514,15 +518,9 @@ void *threadPlayers(void *data) {
     while(plData->stop == 0) {
         //read the player ENGINE FIFO GAME
 
-        if(!player.accepted)
-            continue;
-
         if(player.move == -2) {     //player sent a msg
-            strcpy(msg.msg, player.message);
-            strcpy(msg.playerNameSentmsg, player.name);
-
             for(int i = 0 ; i < plData->game->nPlayers; i++) {
-                if(strcmp(player.personNameMessage, plData->game->players[i]) == 0) {
+                if(strcmp(player.personNameMessage, plData->game->players[i].name) == 0) {
                     sprintf(msg.pipeName, FIFO_PRIVATE_MSG, plData->game->players[i].pid);
                     //send to the player the struct message
                     break;
@@ -530,12 +528,12 @@ void *threadPlayers(void *data) {
             }
             
         } else if(player.move == -1) {     //player sent a command
-            if(strcmp(player.command, "players")) {
+            if(strcmp(player.command, "players") == 0) {
                 
-            } else if(strcmp(player.command, "exit") {
+            } else if(strcmp(player.command, "exit") == 0) {
                 //kickPlayer();
             }
-        } else {
+        } else { //move normal
             //send to function the player from game (game.player[i])
             for(int i = 0 ; i < plData->game->nPlayers ; i++) {
                 if(strcmp(plData->game->players[i].name, player.name) == 0) {
@@ -543,7 +541,7 @@ void *threadPlayers(void *data) {
                     break;
                 }
             }
-            //send to all players the new game
+            //send to all players the new game -> passar function
         }
         
     }
