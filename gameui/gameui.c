@@ -1,129 +1,22 @@
 #include "gameui.h"
 
-void printmap(GAME game){
-    clear();
-    refresh();
-
-    int width=16;
-    int height=40;
-
-	init_pair(1, COLOR_YELLOW, COLOR_BLUE);
-	init_pair(2, COLOR_YELLOW, COLOR_RED);
-        
-	for(int i = 0 ; i < height ; i++) {
-		for(int j=0 ; j<width ; j++){
-			if(game.map[i][j]=='#'){
-				attron(COLOR_PAIR(1));
-				mvprintw(i,j,"#");
-				attroff(COLOR_PAIR(1));
-			}
-			else if(game.map[i][j] == ' '){
-				mvprintw(i,j," ");
-			}
-		}
-	}
-	
-    refresh();
-}
-
-void desenhaMoldura(int alt, int comp, int lin, int col) {
-	--lin;
-	--col;
-	alt+=2;
-	comp+=2;
-	// desenha barras verticais laterais
-	for (int l=lin; l<=lin+alt-1; ++l) {
-		mvaddch(l, col, '|');            // MoVe para uma posição e ADDiciona um CHar lá
-		mvaddch(l, col+comp-1, '|');
-	}
-	// desenha as barras horizontais
-	for (int c=col; c<=col+comp-1; ++c) {
-		mvaddch(lin, c, '-');
-		mvaddch(lin+alt-1, c, '-');
-	}
-	// desenha os cantos
-	mvaddch(lin, col, '+');
-	mvaddch(lin, col+comp-1, '+');
-	mvaddch(lin+alt-1, col, '+');
-	mvaddch(lin+alt-1,col+comp-1,'+');
-	refresh();
-}
-
-void readFileMap(int level, GAME *game) {
-    FILE *file;
-    char fileName[30];
-    
-    switch(level) {
-        case 1:
-            strcpy(fileName, "level1map.txt");
-        break;
-
-        case 2:
-            strcpy(fileName, "level2map.txt");
-        break;
-
-        case 3:
-            strcpy(fileName, "level3map.txt");
-        break;
-    }
-
-    // Open the file for reading
-    file = fopen(fileName, "r");
-
-    // Check if the file was opened successfully
-    if (file == NULL) {
-        perror("\nError opening file\n");
-        return; // Return an error code
-    }
-
-    // Read the content of the file into the array
-    for (int i = 0; i < 16; ++i) {
-        for (int j = 0; j < 40; ++j) {
-            int ch = fgetc(file);
-
-            // Check for end of file or error
-            if (ch == EOF || ch == '\n') {
-                break;
-            }
-
-            game->map[i][j] = (char)ch;
-        }
-
-        // Skip remaining characters in the line if it's longer than 40 characters
-        int c;
-        while ((c = fgetc(file)) != EOF && c != '\n')
-            ;
-    }
-
-    // Close the file
-    fclose(file);
-
-    // Print the content of the array with explicit newline characters
-    for (int i = 0; i < 16; ++i) {
-        for (int j = 0; j < 40; ++j) {
-            printf("%c", game->map[i][j]);
-        }
-        printf("\n");
-    }
-
-}
 
 
 int main(int argc, char *argv[]) {
     int lin, col, color, stop = 0;
 	char pipeName[50];
-    WINDOW * window;
+    WINDOW *wGame, *wComands, *wGeneral, *wInfo;
     
     PLAYER player;
 	PLAYDATA playData;
-	pthread_t threadPlayID;
+	RECGAMEDATA recGameData;
+	pthread_t threadPlayID, threadRecGameID;
     
     if(argc != 2) {
         printf("\n[ERROR] Invalid number of arguments -> Sintax: <./gameui NAME>\n");
         exit(1);
     }
 	
-    
     strcpy(player.name, argv[1]);
 
 	int fdWrInitEngine = open(FIFO_ENGINE_ACP, O_WRONLY);   //Abrir o fifo em modo de escrita bloqueante
@@ -131,6 +24,8 @@ int main(int argc, char *argv[]) {
 		perror("Engine is not running yet\n");     
 		return -1;
 	}
+
+	signal(SIGWINCH, resizeHandler);
 
 	player.pid = getpid();
 
@@ -158,71 +53,98 @@ int main(int argc, char *argv[]) {
 		//unlink(pipeName);
 		//close(fdRdEngine);
 		return -1;
-	} else {
+	} 
 
-		initscr();  
-		start_color();
-		erase(); 
+	initscr();  // Obrigatorio e sempre a primeira operação de ncurses
+             // Inicializa o motor de cores
+    erase();      // Limpa o ecrã e posiciona o cursor no canto superir esquerdo (refresh mais adiante)
+    noecho();   // Desliga o echo porque a seguir vai ler telcas de direção não se pretende "ecoar" essa tecla no ecrã
+    cbreak();   // desliga a necessidade de enter. cada tecla é lida imediatamente
+	refresh(); 
 
-		init_pair(4, COLOR_YELLOW, COLOR_BLUE);
-		init_pair(5, COLOR_YELLOW, COLOR_BLACK);
-		refresh(); 
+	init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(3, COLOR_BLUE, COLOR_BLACK);
+    init_pair(4, COLOR_YELLOW, COLOR_BLUE);
+    init_pair(5, COLOR_YELLOW, COLOR_BLACK);
+	refresh(); 
 
-		noecho();   // Desliga o echo porque a seguir vai ler telcas de direção não se pretende "ecoar" essa tecla no ecrã
-		cbreak();   // desliga a necessidade de enter. cada tecla é lida imediatamente
+	wGame= newwin(30, 50, 1, 1);  
+	wComands = newwin(4, 50, 5, 1);   
+	wGeneral = newwin(6, 50, 35, 1);   
+	wInfo = newwin(5, 50, 41, 1);   
 
-		attron(COLOR_PAIR(5));
+	box(wGame,0,0);
+	box(wComands,0,0);
+	box(wGeneral,0,0);
+	box(wInfo,0,0);
+	
+	noecho();   // Desliga o echo porque a seguir vai ler telcas de direção não se pretende "ecoar" essa tecla no ecrã
+	cbreak();   // desliga a necessidade de enter. cada tecla é lida imediatamente
+	
+	attron(COLOR_PAIR(5));
 
-		desenhaMoldura(20,50,6,15);
-		window = newwin(30, 50, 6, 15);   
-		wattrset(window, COLOR_PAIR(4));  // define foreground/backgorund dos caracteres
-		wbkgd(window, COLOR_PAIR(4));      // define backgound dos espaço vazio
-		scrollok(window, TRUE);
-		keypad(window, TRUE);  
+	//Windows
 
-		werase(window);
-		wrefresh(window);
-		//wprintw(window,"Teclas de direção e espaço e q para sair\n");
-		wrefresh(window);
+	wattrset(wGame, COLOR_PAIR(4));  // define foreground/backgorund dos caracteres
+	wbkgd(wGame, COLOR_PAIR(4));      // define backgound dos espaço vazio
+	scrollok(wGame, TRUE);
+	keypad(wGame, TRUE);  
+
+	wrefresh(wGame);
+	wrefresh(wComands);
+	wrefresh(wGeneral);
+	wrefresh(wInfo);
+
+	if(player.accepted == 1) {		//normal player
+		printf("Normal player\n"); 
+
+		playData.player = &player;
+		playData.stop = &stop;
+		playData.window = wComands;
 
 		
+		if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
+			perror("Error creating threadPlay\n");
+			//send player to engine to take him out of the game
+		}
 
-		if(player.accepted == 2) {	//the player will only see the game, he cant do anything else
-			printf("Time to enroll has ended, you will only be able to watch\n"); 
-			 //thread rec game
-			 
-		} else if(player.accepted == 1) {		//normal player
-			printf("Normal player\n"); 
+		//unlink(pipeName);
+		//close(fdRdEngine);
+	}	
 
-			playData.player = &player;
-			playData.stop = &stop;
-
-			if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
-				perror("Error creating threadPlay\n");
-				return -1;
-			}
-			//thread rec game
-			GAME game;
-			readFileMap(1, &game);
-			printmap(game);
-
-			pthread_join(threadPlayID, NULL);
-			//unlink(pipeName);
-			//close(fdRdEngine);
-		}	
+	
+	//if(player.accepted == 2) {	//the player will only see the game, he cant do anything else
+		//printf("Time to enroll has ended, you will only be able to watch\n"); 
+			
+	//thread rec game	
+	
+	recGameData.stop = &stop;
+	recGameData.window = wGame;
+	
+	if(pthread_create(&threadRecGameID, NULL, &threadRecGame, &recGameData)) {
+		perror("Error creating threadRecGame\n");
+		//send player to engine to take hi out of the game
 	}
 
-   endwin();
-   return 0;
+	
+
+	pthread_join(threadPlayID, NULL);
+   	endwin();
+   	return 0;
 }
 
-int keyboardCmdGameUI(PLAYER *player, WINDOW *window) {
+void resizeHandler(int sig) { //compor nesta função
+    refresh();
+}
+
+int keyboardCmdGameUI(PLAYER *player, WINDOW *wComands) {
     char str1[10], str2[30], str3[100];
     char cmd[200], msg[200];
 
-	wprintw(window,"\nCommand: ");
+	wprintw(wComands,"\nCommand: ");
 	fflush(stdout);
-	wscanw(window," %200[^\n]", cmd);
+	wscanw(wComands," %200[^\n]", cmd);
 	
 	if (sscanf(cmd, "%s %s %[^\n]", str1, str2, str3) == 3 && strcmp(str1, "msg") == 0) {
 		strcpy(player->command, str1);
@@ -230,18 +152,14 @@ int keyboardCmdGameUI(PLAYER *player, WINDOW *window) {
 		strcpy(player->message, str3);
 		//wprintw(window,"\%s, %s, %s\n", str1, str2, str3);
 		return 2;
-		wprintw(window,"\nVALID\n");
 	} else {
 		if(strcmp(cmd, "players") == 0) {
 			strcpy(player->command, cmd);
-			wprintw(window,"\nVALID\n");
 			return 1;
 		}else if(strcmp(cmd, "exit") == 0) {
 			strcpy(player->command, cmd);
-			wprintw(window,"\nVALID\n");
 			return -1;
 		} else {
-			wprintw(window,"\nINVALID\n");
 			return 0;
 		}
 	}
@@ -256,8 +174,8 @@ void *threadPlay(void *data) {
 	p = NULL;
 
 	//fdWrEngine
-
-    while (plData->stop == 0) {
+	
+    while (plData->stop) {
 		ret = 0;
        	ch = wgetch(plData->window);  // MUITO importante: o input é feito sobre a janela em questão
        	switch (ch) {
@@ -324,7 +242,7 @@ void *threadRecGame(void *data) {
     }*/
 
 	int size = 0;
-	while(recGData->stop == 0) {
+	while(recGData->stop) {
 		
 
 		//read do jogo do engine	GAMEUI FIFO PID meu
@@ -355,7 +273,7 @@ void *threadRecMessages(void *data) {
 		//show player the msg from the other player
 
 		//mutex unlock window
-		
+	
 		//close pipe
 
 	//}
@@ -363,4 +281,28 @@ void *threadRecMessages(void *data) {
 
 }
 
+void printmap(GAME game, WINDOW* wGame){
+    clear();
+    refresh();
 
+    int width=16;
+    int height=40;
+
+	init_pair(1, COLOR_YELLOW, COLOR_BLUE);
+	init_pair(2, COLOR_YELLOW, COLOR_RED);
+        
+	for(int i = 0 ; i < height ; i++) {
+		for(int j=0 ; j < width ; j++){
+			if(game.map[i][j]=='X'){
+				attron(COLOR_PAIR(1));
+				mvwprintw(wGame,i,j,"X");
+				attroff(COLOR_PAIR(1));
+			}
+			else if(game.map[i][j] == ' '){
+				mvwprintw(wGame,i,j," ");
+			}
+		}
+	}
+	
+    refresh();
+}

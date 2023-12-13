@@ -25,14 +25,12 @@ typedef struct {
     PLAYER *player;
     int *stop;
     WINDOW *window;
-    pthread_mutex_t *mutexWindow;
 } PLAYDATA;
 
 typedef struct {
     GAME *game;
     int *stop;
     WINDOW *window;
-    pthread_mutex_t *mutexWindow;
 } RECGAMEDATA;
 
 
@@ -45,4 +43,7 @@ void *threadRecGame(void *data);
 
 void *threadRecMessages(void *data);
 
+void printmap(GAME game, WINDOW* wGame);
+
+	void resizeHandler(int sig);
 #endif

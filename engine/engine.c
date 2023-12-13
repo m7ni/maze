@@ -72,7 +72,7 @@ void *threadClock(void* data){
     CLKDATA *clkData = (CLKDATA *) data;
     printf("Inside threadClock\n");
 
-    while(clkData->stop == 0) {
+    while(clkData->stop) {
         sleep(1);
         pthread_mutex_lock(clkData->mutexGame);
         if(clkData->game->timeleft > 0) 
@@ -299,7 +299,7 @@ void *threadKBEngine(void *data) {        //thread to receive commands from the 
     KBDATA *kbData = (KBDATA *) data;
     char cmd[200], str1[30], str2[30];
     
-    while(kbData->stop == 0) {
+    while(kbData->stop) {
         int flag = 0;
         printf("\nCommand: ");
         fflush(stdout);
@@ -515,7 +515,7 @@ void *threadPlayers(void *data) {
     PLAYER player;
     MESSAGE msg;
 
-    while(plData->stop == 0) {
+    while(plData->stop) {
         //read the player ENGINE FIFO GAME
 
         if(player.move == -2) {     //player sent a msg
