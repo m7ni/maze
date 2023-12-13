@@ -95,7 +95,7 @@ void *threadACP(void *data) {     //thread to accept players
     int flag = 0, i = 0,n, cont = 0;
     ACPDATA *acpData = (ACPDATA *) data;
 
-    printf("Inside thread ACP\n");
+    printf("\nInside thread ACP\n");
 
     int fdRdACP = open(FIFO_ENGINE_ACP, O_RDWR);
     if(fdRdACP == -1) {
@@ -108,10 +108,9 @@ void *threadACP(void *data) {     //thread to accept players
         flag = 0;
         char pipeName[50];
         
-         
         int size = read(fdRdACP, &player, sizeof(PLAYER));
         if (size > 0) {
-            printf("[PIPE %s] Player: %s\n",FIFO_ENGINE_ACP ,player.name);
+            printf("\n[PIPE %s] Player: %s\n",FIFO_ENGINE_ACP ,player.name);
         }
         
         
@@ -148,11 +147,13 @@ void *threadACP(void *data) {     //thread to accept players
         pthread_mutex_unlock(acpData->mutexGame);
 
         //send player to gameui to see if he can enter the game
+        printf("\n%d", player.pid);
         sprintf(pipeName, FIFO_GAMEUI, player.pid);
+        printf("\n%s", pipeName);
         int fdWrInitGameui = open(pipeName, O_WRONLY);
         if (fdWrInitGameui == -1) {
             perror("open");
-            fprintf(stderr, "Error opening %s for writing: %d\n", pipeName, errno);
+            fprintf(stderr, "\nError opening %s for writing: %d\n", pipeName, errno);
         }
 
         size = write (fdWrInitGameui, &player, sizeof(player));
@@ -510,8 +511,8 @@ void *threadPlayers(void *data) {
     int size = 0;
     PLAYER player;
     MESSAGE msg;
-    int flag = 0;
 
+    printf("\nInside thread Players\n");
     if(mkfifo(FIFO_ENGINE_GAME, 0666) == -1) {
         perror("Error creating fifo engine game\n"); 
     }  
@@ -520,37 +521,13 @@ void *threadPlayers(void *data) {
 		perror("Error openning fifo engine game\n"); 
 	}
     char pipeNameGamePlayer[30];
-    while(plData->stop) {
-        if(flag == 0) {
-            pthread_mutex_lock(plData->mutexGame); 
-            for(int i = 0 ; i < plData->game->nPlayers ; i++) {
-                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->players[i].pid);
-
-                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
-                if(fdWrGamePlayer == -1) {
-                    perror("Error openning game fifo\n"); 
-                }
-
-                size = write (fdWrGamePlayer, &plData->game, sizeof(GAME));
-            }
-            for(int i = 0 ; i < plData->game->nNonPlayers ; i++) {
-                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->nonPlayers[i].pid);
-
-                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
-                if(fdWrGamePlayer == -1) {
-                    perror("Error openning game fifo\n"); 
-                }
-
-                size = write (fdWrGamePlayer, &plData->game, sizeof(GAME));
-            }
-            pthread_mutex_unlock(plData->mutexGame); 
-            flag = 1;
-        }
+    while(plData->stop == 0) {  //aqui tem de se meter == 0
         //read the player ENGINE FIFO GAME
         size = read (fdRdPlayerMoves, &player, sizeof(PLAYER));
         printf("\nReceived player: %s with move: %d\n", player.name, player.move);
 
         if(player.move == -2) {     //player sent a msg
+            pthread_mutex_lock(plData->mutexGame); 
             for(int i = 0 ; i < plData->game->nPlayers; i++) {
                 if(strcmp(player.personNameMessage, plData->game->players[i].name) == 0) {
                     sprintf(msg.pipeName, FIFO_PRIVATE_MSG, plData->game->players[i].pid);
@@ -568,6 +545,7 @@ void *threadPlayers(void *data) {
                     break;
                 }
             }
+            pthread_mutex_unlock(plData->mutexGame); 
             
         } else if(player.move == -1) {     //player sent a command
             if(strcmp(player.command, "players") == 0) {
@@ -606,7 +584,7 @@ void *threadPlayers(void *data) {
                     perror("Error openning game fifo\n"); 
                 }
 
-                size = write (fdWrGamePlayer, &plData->game, sizeof(GAME));
+                size = write (fdWrGamePlayer, plData->game, sizeof(GAME));
             }
             for(int i = 0 ; i < plData->game->nNonPlayers ; i++) {
                 sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->nonPlayers[i].pid);
@@ -616,7 +594,7 @@ void *threadPlayers(void *data) {
                     perror("Error openning game fifo\n"); 
                 }
 
-                size = write (fdWrGamePlayer, &plData->game, sizeof(GAME));
+                size = write (fdWrGamePlayer, plData->game, sizeof(GAME));
             }
             pthread_mutex_unlock(plData->mutexGame); 
         }

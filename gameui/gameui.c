@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     }
 	
 	//send player to engine to see if he can enter the gamemm
-	int size = write (fdWrInitEngine, &player, sizeof(player));
+	int size = write (fdWrInitEngine, &player, sizeof(PLAYER));
 	printf("Sent: %s com o tamanho [%d]\n", player.name, size);
 
     //receive response from engine to see if the player can enter the game
@@ -102,7 +102,8 @@ int main(int argc, char *argv[]) {
 		playData.player = &player;
 		playData.stop = &stop;
 		playData.window = wComands;
-		playData.fd = fdWrInitEngine;
+		int fdWrEngine = open(FIFO_ENGINE_GAME, O_WRONLY);
+		playData.fd = fdWrEngine;
 
 		
 		if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
@@ -231,7 +232,7 @@ void *threadPlay(void *data) {
 				plData->player->move = -2;
 				//send player to engine and wait to receive the pipe name of the player, 
 				//if the player doesnt exist the pipe name will be "error" and he will continue
-				size = write (plData->fd, &plData->player, sizeof(PLAYER));
+				size = write (plData->fd, plData->player, sizeof(PLAYER));
 
 				MESSAGE msg;
 				
@@ -267,7 +268,7 @@ void *threadPlay(void *data) {
     	}
 		if(plData->player->move != -2) {
 			//send player to engine ENGINE FIFO GAME
-			size = write (plData->fd, &plData->player, sizeof(PLAYER));
+			size = write (plData->fd, plData->player, sizeof(PLAYER));
 			printf("Sent: %s com a move %d e o tamanho [%d]\n", plData->player->name, plData->player->move, size);
 		}
 
@@ -297,7 +298,7 @@ void *threadRecGame(void *data) {
 	while(recGData->stop) {
 		//read do jogo do engine	GAMEUI FIFO PID meu
 		size = read (fdRdEngine, &game, sizeof(GAME));
-	
+		printf("\nReceived %d", game.level);
 		printmap(game, recGData->window);
 
 		//change the window
@@ -341,8 +342,6 @@ void *threadRecMessages(void *data) {
 }
 
 void printmap(GAME game, WINDOW* wGame){
-    clear();
-    refresh();
 
     int width=16;
     int height=40;
@@ -363,5 +362,4 @@ void printmap(GAME game, WINDOW* wGame){
 		}
 	}
 	
-    refresh();
 }
