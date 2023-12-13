@@ -10,7 +10,8 @@ int main(int argc, char *argv[]) {
     PLAYER player;
 	PLAYDATA playData;
 	RECGAMEDATA recGameData;
-	pthread_t threadPlayID, threadRecGameID;
+	RECMSGDATA recMSGData;
+	pthread_t threadPlayID, threadRecGameID, threadRecMSGID;
     
     if(argc != 2) {
         printf("\n[ERROR] Invalid number of arguments -> Sintax: <./gameui NAME>\n");
@@ -70,7 +71,7 @@ int main(int argc, char *argv[]) {
 	refresh(); 
 
 	wGame= newwin(30, 50, 1, 1);  
-	wComands = newwin(4, 50, 5, 1);   
+	wComands = newwin(4, 50, 31, 1);   
 	wGeneral = newwin(6, 50, 35, 1);   
 	wInfo = newwin(5, 50, 41, 1);   
 
@@ -85,7 +86,6 @@ int main(int argc, char *argv[]) {
 	attron(COLOR_PAIR(5));
 
 	//Windows
-
 	wattrset(wGame, COLOR_PAIR(4));  // define foreground/backgorund dos caracteres
 	wbkgd(wGame, COLOR_PAIR(4));      // define backgound dos espaço vazio
 	scrollok(wGame, TRUE);
@@ -102,6 +102,7 @@ int main(int argc, char *argv[]) {
 		playData.player = &player;
 		playData.stop = &stop;
 		playData.window = wComands;
+		playData.fd = fdWrInitEngine;
 
 		
 		if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
@@ -109,26 +110,28 @@ int main(int argc, char *argv[]) {
 			//send player to engine to take him out of the game
 		}
 
-		//unlink(pipeName);
-		//close(fdRdEngine);
+		recMSGData.window = wGeneral;
+		recMSGData.stop = &stop;
+
+		if(pthread_create(&threadRecMSGID, NULL, &threadRecMessages, &recMSGData)) {
+			perror("Error creating threadRecGame\n");
+			//send player to engine to take hi out of the game
+		}
 	}	
 
-	
-	//if(player.accepted == 2) {	//the player will only see the game, he cant do anything else
-		//printf("Time to enroll has ended, you will only be able to watch\n"); 
-			
-	//thread rec game	
-	
+
+	//thread rec game		
 	recGameData.stop = &stop;
 	recGameData.window = wGame;
+
 	
 	if(pthread_create(&threadRecGameID, NULL, &threadRecGame, &recGameData)) {
 		perror("Error creating threadRecGame\n");
 		//send player to engine to take hi out of the game
 	}
 
-	
-
+	pthread_join(threadRecGameID, NULL);
+	pthread_join(threadRecMSGID, NULL);
 	pthread_join(threadPlayID, NULL);
    	endwin();
    	return 0;
@@ -170,12 +173,30 @@ void *threadPlay(void *data) {
 	const char *p;
 	int ch;
 	int ret;
+	int size;
 
 	p = NULL;
 
-	//fdWrEngine
+/*
+	int fdWrEngine = open(FIFO_ENGINE_GAME, O_RDWR);
+    if(fdWrEngine == -1) {
+        perror("Error openning engine game fifo\n"); 
+    }
+*/
+	//mkfifo to receive the PID of player from the engine
+	char pipeNamePIDPlayer[30];
+
+	sprintf(pipeNamePIDPlayer, FIFO_PID_MSG, getpid());
+
+	if(mkfifo(pipeNamePIDPlayer, 0666) == -1) {
+		perror("\nError creating pid message fifo\n");
+	}
+
+	keypad(plData->window, TRUE);
 	
     while (plData->stop) {
+		wmove(plData->window, 1, 1);
+		size = 0;
 		ret = 0;
        	ch = wgetch(plData->window);  // MUITO importante: o input é feito sobre a janela em questão
        	switch (ch) {
@@ -203,13 +224,38 @@ void *threadPlay(void *data) {
 
 			if(ret == -1) {
 				//send player to engine to kick himself
+				plData->player->move = -3;
 			} else if(ret == 1) {
 				plData->player->move = -1;
 			} else if(ret == 2) {
 				plData->player->move = -2;
 				//send player to engine and wait to receive the pipe name of the player, 
 				//if the player doesnt exist the pipe name will be "error" and he will continue
+				size = write (plData->fd, &plData->player, sizeof(PLAYER));
+
+				MESSAGE msg;
+				
+				int fdRdEngPIDPlayer = open(pipeNamePIDPlayer, O_RDWR);
+				if(fdRdEngPIDPlayer == -1) {
+					perror("Error openning pid message fifo\n"); 
+				}
+
+				size = read (fdRdEngPIDPlayer, &msg, sizeof(MESSAGE));
+
+				if(strcmp(msg.pipeName, "error") == 0)
+					break;
+
+				strcpy(msg.msg, plData->player->message);
+				strcpy(msg.namePlayerSentMessage, plData->player->name);
 				//write to player pipe name
+				int fdWrPlayer = open(msg.pipeName, O_RDWR);
+				if(fdWrPlayer == -1) {
+					perror("Error openning private message fifo\n"); 
+				}
+
+				size = write (fdWrPlayer, &msg, sizeof(MESSAGE));
+				printf("Sent: Player %s sent %s e o tamanho [%d]\n", msg.namePlayerSentMessage, msg.msg, size);
+
 			}
 
          	noecho();        // Volta a desligar o echo das teclas premidas
@@ -221,6 +267,8 @@ void *threadPlay(void *data) {
     	}
 		if(plData->player->move != -2) {
 			//send player to engine ENGINE FIFO GAME
+			size = write (plData->fd, &plData->player, sizeof(PLAYER));
+			printf("Sent: %s com a move %d e o tamanho [%d]\n", plData->player->name, plData->player->move, size);
 		}
 
       	if (p != NULL) {
@@ -235,48 +283,59 @@ void *threadPlay(void *data) {
 void *threadRecGame(void *data) {
 	RECGAMEDATA *recGData = (RECGAMEDATA *) data;
 	GAME game;
-/*
-	int fdRdEngine = open(pipeName, O_RDWR);
+
+	char pipeNameRecGame[30];
+
+	sprintf(pipeNameRecGame, FIFO_GAMEUI, getpid());
+
+	int fdRdEngine = open(pipeNameRecGame, O_RDWR);
     if(fdRdEngine == -1) {
         perror("Error openning gameui fifo\n"); 
-    }*/
+    }
 
 	int size = 0;
 	while(recGData->stop) {
-		
-
 		//read do jogo do engine	GAMEUI FIFO PID meu
-		//size = read (fdRdEngine, &game, sizeof(game));
-		//mutex lock window
+		size = read (fdRdEngine, &game, sizeof(GAME));
+	
+		printmap(game, recGData->window);
 
-			//change the window
-
-		//mutex unlock window
-
+		//change the window
+		wrefresh(recGData->window);
 	}
 	pthread_exit(NULL);
 }
 
 void *threadRecMessages(void *data) {
 	RECMSGDATA *recMSGData = (RECMSGDATA *) data;
-		
-	//create pipe to receive the msg from player	PRIVATE MSG PID
+	MESSAGE msg;
+	char pipeNamePrivMSG[30];
+	int size = 0;
+
 	//mkfifo PRIVATE MSG PID
+	sprintf(pipeNamePrivMSG, FIFO_PRIVATE_MSG, getpid());
+
+	if(mkfifo(pipeNamePrivMSG, 0666) == -1) {
+		perror("\nError creating private message fifo\n");
+	}
+
 	//open fd read
+	int fdRdPlayerMSG = open(pipeNamePrivMSG, O_RDWR);
+	if(fdRdPlayerMSG == -1) {
+		perror("Error openning private message fifo\n"); 
+	}
 
-	//while(recGData->stop == 0) {
-
+	while(recMSGData->stop) {
 		//read from pipe PRIVATE MSG PID
-		
-		//mutex lock window
+		size = read (fdRdPlayerMSG, &msg, sizeof(MESSAGE));
 
 		//show player the msg from the other player
-
-		//mutex unlock window
+		wprintw(recMSGData->window, "Player %s sent you:\n\t%s", msg.namePlayerSentMessage, msg.msg);
+		
+	}
+	close(fdRdPlayerMSG);
+	unlink(pipeNamePrivMSG);
 	
-		//close pipe
-
-	//}
 	pthread_exit(NULL);
 
 }

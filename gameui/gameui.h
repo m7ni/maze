@@ -19,12 +19,15 @@
 
 typedef struct {
     char pipeName[50];
+    char namePlayerSentMessage[30];
+    char msg[100];
 }MESSAGE;
 
 typedef struct {
     PLAYER *player;
     int *stop;
     WINDOW *window;
+    int fd;
 } PLAYDATA;
 
 typedef struct {
@@ -32,8 +35,6 @@ typedef struct {
     int *stop;
     WINDOW *window;
 } RECGAMEDATA;
-
-
 
 int keyboardCmdGameUI(PLAYER *player, WINDOW *window);
 
@@ -45,5 +46,5 @@ void *threadRecMessages(void *data);
 
 void printmap(GAME game, WINDOW* wGame);
 
-	void resizeHandler(int sig);
+void resizeHandler(int sig);
 #endif

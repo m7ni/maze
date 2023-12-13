@@ -30,6 +30,10 @@ typedef struct {
 
 typedef struct {
     char name[30];
+} NAMEPLAYERS;
+
+typedef struct {
+    char name[30];
     int move;   //0 - left, 1 - up, 2 - right, 3 - down, -1 - command, -2 - message
     int position[2];
     char skin;
@@ -38,7 +42,7 @@ typedef struct {
     char message[100];
     int accepted;
     int pid;
-    char pipeName[30];
+    NAMEPLAYERS players[5];
 } PLAYER;
 
 typedef struct {
@@ -64,7 +68,6 @@ typedef struct {
     GAME game;
     int *stop;
     WINDOW *window;
-    pthread_mutex_t *mutexWindow;
 } RECMSGDATA;
 
 #endif

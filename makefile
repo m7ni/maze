@@ -1,6 +1,6 @@
 CC = gcc -W
 
-all: engine/engine.exe gameui/gameui.exe bot/bot.exe
+all: engine/engine.exe gameui/gameui.exe bot/bot.exe clean-pipes
 	@ echo "Task completed"
 
 debug: gameui-debug engine-debug

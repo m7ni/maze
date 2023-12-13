@@ -21,7 +21,6 @@ int main(int argc, char *argv[]) {
     
     pthread_mutex_init(&mutexGame, NULL);
     
-    
     acpData.game = &game;
     acpData.stop = &stop;
     acpData.mutexGame = &mutexGame;
@@ -43,11 +42,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    
-
-    pthread_join(threadACPID, NULL);
-    
-    /*
     createPipe(pipeBot,&game);
     
     kbData.game = &game;
@@ -63,9 +57,14 @@ int main(int argc, char *argv[]) {
     plData.game = &game;
     plData.stop = 0;
     plData.mutexGame = &mutexGame;
+
     if(pthread_create(&threadPlayersID, NULL, &threadPlayers, &plData))
         return -1;
-    */
+    
+    pthread_join(threadACPID, NULL);
+    pthread_join(threadClockID, NULL);
+    pthread_join(threadKBID, NULL);
+    pthread_join(threadPlayersID, NULL);
 }
 
 void *threadClock(void* data){
@@ -95,10 +94,11 @@ void *threadClock(void* data){
 void *threadACP(void *data) {     //thread to accept players
     int flag = 0, i = 0,n, cont = 0;
     ACPDATA *acpData = (ACPDATA *) data;
-    //alarm(acpData->timeEnrolment);
-    
-    int fd = open(FIFO_ENGINE_ACP, O_RDWR);
-    if(fd == -1) {
+
+    printf("Inside thread ACP\n");
+
+    int fdRdACP = open(FIFO_ENGINE_ACP, O_RDWR);
+    if(fdRdACP == -1) {
         perror("Error opening FIFO for accepting players\n");
         //function to exit everything
     }
@@ -107,14 +107,14 @@ void *threadACP(void *data) {     //thread to accept players
         PLAYER player;
         flag = 0;
         char pipeName[50];
-        printf("Inside thread ACP\n");
+        
          
-        int size = read(fd, &player, sizeof(PLAYER));
+        int size = read(fdRdACP, &player, sizeof(PLAYER));
         if (size > 0) {
             printf("[PIPE %s] Player: %s\n",FIFO_ENGINE_ACP ,player.name);
         }
         
-        //mutex lock
+        
         pthread_mutex_lock(acpData->mutexGame);
         //sleep timeErolment
         if(acpData->game->nPlayers < 5 && acpData->game->level == 0 && acpData->game->start == 0 && acpData->timeEnrolment > 0) {
@@ -154,17 +154,10 @@ void *threadACP(void *data) {     //thread to accept players
             perror("open");
             fprintf(stderr, "Error opening %s for writing: %d\n", pipeName, errno);
         }
-        // printf("\n%s", pipeName);
+
         size = write (fdWrInitGameui, &player, sizeof(player));
-        if (size == -1) {
-            perror("write");
-            // Optionally, you can also print the specific error using errno
-            fprintf(stderr, "Error writing to fdWrInitGameui: %d\n", errno);
-            // Handle the error as needed
-        } else {
-            printf("Successfully wrote %d bytes\n", size);
-        }
-        // printf("\nSent: %s com o tamanho [%d]", player.name, size);
+        
+        printf("\nSent: %s com o tamanho [%d]", player.name, size);
         
     }
     printf("Outside threadACP\n");
@@ -308,7 +301,7 @@ void *threadKBEngine(void *data) {        //thread to receive commands from the 
         
         
         if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0) {
-            //mutex lock
+            pthread_mutex_lock(kbData->mutexGame); 
             for(int i = 0 ; i < kbData->game->nPlayers ; i++) {
                 if(strcmp(kbData->game->players[i].name, str2)) {
                     printf("\nPlayer %s has been kicked\n", kbData->game->players[i].name);
@@ -319,24 +312,28 @@ void *threadKBEngine(void *data) {        //thread to receive commands from the 
                     break;
                 }
             }
-            //mutex unlock
+            pthread_mutex_unlock(kbData->mutexGame); 
             if(flag == 0) {
                 printf("\nThere is no player with the name %s\n", str2);
             } else {
+                pthread_mutex_lock(kbData->mutexGame); 
                 //kickPlayer();
+                pthread_mutex_unlock(kbData->mutexGame); 
             }
         } else {
             cmd[ strlen( cmd ) - 1 ] = '\0';
             if(strcmp(cmd, "users") == 0) {
-                //mutex lock
+                pthread_mutex_lock(kbData->mutexGame); 
                 printf("\nPlayers:\n");
+
                 for(int i = 0 ; i < kbData->game->nPlayers ; i++) {
                     printf("\tPlayer %s\n", kbData->game->players[i].name);
                 }
-                //mutex unlock
+
+                pthread_mutex_unlock(kbData->mutexGame); 
             } 
             else if(strcmp(cmd, "bots") == 0) {
-                //mutex lock
+                pthread_mutex_lock(kbData->mutexGame); 
                 if(kbData->game->nBots == 0) {
                     printf("\nThere are no bots yet\n");
                     break;
@@ -346,27 +343,26 @@ void *threadKBEngine(void *data) {        //thread to receive commands from the 
                     printf("Bot %d with PID[%d]\t interval [%d]\t duration [%d]", 
                     i, kbData->game->bots[i].pid, kbData->game->bots[i].interval, kbData->game->bots[i].duration);
                 }
-                //mutex unlock
+                pthread_mutex_unlock(kbData->mutexGame); 
             } 
             else if(strcmp(cmd, "bmov") == 0) {
-                //mutex lock
+                pthread_mutex_lock(kbData->mutexGame); 
 
 
-                //mutex unlock
+                pthread_mutex_unlock(kbData->mutexGame); 
             } 
             else if(strcmp(cmd, "rbm") == 0) {
-                //mutex lock
+                pthread_mutex_lock(kbData->mutexGame); 
 
 
-                //mutex unlock
+                pthread_mutex_unlock(kbData->mutexGame); 
 
             } 
             else if(strcmp(cmd, "begin") == 0) {  //init the game automatically even if there is no min number of Players
-                //mutex lock
+                pthread_mutex_lock(kbData->mutexGame); 
                 kbData->game->start = 1;
                 passLevel(kbData->game);
-                //mutex unlock
-
+                pthread_mutex_unlock(kbData->mutexGame); 
             } 
             /*
             else if(strcmp(cmd, "bot") == 0) {
@@ -378,10 +374,10 @@ void *threadKBEngine(void *data) {        //thread to receive commands from the 
             } 
             */
             else if(strcmp(cmd, "exit") == 0) {
-                //mutex lock
+                pthread_mutex_lock(kbData->mutexGame); 
                 //avisar os bots com um sinal;
                 //avisar os jogadores;
-                //mutex unlock
+                pthread_mutex_unlock(kbData->mutexGame); 
             } 
             else {
                 printf("\nINVALID");
@@ -511,39 +507,119 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
 
 void *threadPlayers(void *data) {
     PLAYERSDATA *plData = (PLAYERSDATA *) data;
-
+    int size = 0;
     PLAYER player;
     MESSAGE msg;
+    int flag = 0;
 
+    if(mkfifo(FIFO_ENGINE_GAME, 0666) == -1) {
+        perror("Error creating fifo engine game\n"); 
+    }  
+    int fdRdPlayerMoves = open(FIFO_ENGINE_GAME, O_RDWR);
+	if(fdRdPlayerMoves == -1) {
+		perror("Error openning fifo engine game\n"); 
+	}
+    char pipeNameGamePlayer[30];
     while(plData->stop) {
+        if(flag == 0) {
+            pthread_mutex_lock(plData->mutexGame); 
+            for(int i = 0 ; i < plData->game->nPlayers ; i++) {
+                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->players[i].pid);
+
+                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
+                if(fdWrGamePlayer == -1) {
+                    perror("Error openning game fifo\n"); 
+                }
+
+                size = write (fdWrGamePlayer, &plData->game, sizeof(GAME));
+            }
+            for(int i = 0 ; i < plData->game->nNonPlayers ; i++) {
+                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->nonPlayers[i].pid);
+
+                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
+                if(fdWrGamePlayer == -1) {
+                    perror("Error openning game fifo\n"); 
+                }
+
+                size = write (fdWrGamePlayer, &plData->game, sizeof(GAME));
+            }
+            pthread_mutex_unlock(plData->mutexGame); 
+            flag = 1;
+        }
         //read the player ENGINE FIFO GAME
+        size = read (fdRdPlayerMoves, &player, sizeof(PLAYER));
+        printf("\nReceived player: %s with move: %d\n", player.name, player.move);
 
         if(player.move == -2) {     //player sent a msg
             for(int i = 0 ; i < plData->game->nPlayers; i++) {
                 if(strcmp(player.personNameMessage, plData->game->players[i].name) == 0) {
                     sprintf(msg.pipeName, FIFO_PRIVATE_MSG, plData->game->players[i].pid);
                     //send to the player the struct message
+                    char pipeNamePIDPlayer[30];
+                    sprintf(pipeNamePIDPlayer, FIFO_PRIVATE_MSG, player.pid);
+
+                    int fdWrPIDPlayer = open(pipeNamePIDPlayer, O_RDWR);
+                    if(fdWrPIDPlayer == -1) {
+                        perror("Error openning pid message fifo\n"); 
+                    }
+
+                    size = write (fdWrPIDPlayer, &msg, sizeof(MESSAGE));
+
                     break;
                 }
             }
             
         } else if(player.move == -1) {     //player sent a command
             if(strcmp(player.command, "players") == 0) {
-                
+                pthread_mutex_lock(plData->mutexGame); 
+
+                for(int i = 0 ; i < plData->game->nPlayers ; i++) {
+                    strcpy(player.players[i].name, plData->game->players[i].name);
+                }
+
+                pthread_mutex_unlock(plData->mutexGame); 
+                //no gameui fazer na thread que tem acesso à janela onde vao aparecer os players
+                //se o array de players do player estiver preenchido então vai dar print dos nomes
             } else if(strcmp(player.command, "exit") == 0) {
+                pthread_mutex_lock(plData->mutexGame); 
                 //kickPlayer();
+                pthread_mutex_unlock(plData->mutexGame); 
             }
         } else { //move normal
             //send to function the player from game (game.player[i])
+            pthread_mutex_lock(plData->mutexGame);  //ver se se mete aqui o mutex ou mesmo lá dentro
             for(int i = 0 ; i < plData->game->nPlayers ; i++) {
                 if(strcmp(plData->game->players[i].name, player.name) == 0) {
                     movePlayer(plData->game, &plData->game->players[i], NULL);
                     break;
                 }
             }
+            pthread_mutex_unlock(plData->mutexGame); 
             //send to all players the new game -> passar function
+            
+            pthread_mutex_lock(plData->mutexGame); 
+            for(int i = 0 ; i < plData->game->nPlayers ; i++) {
+                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->players[i].pid);
+
+                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
+                if(fdWrGamePlayer == -1) {
+                    perror("Error openning game fifo\n"); 
+                }
+
+                size = write (fdWrGamePlayer, &plData->game, sizeof(GAME));
+            }
+            for(int i = 0 ; i < plData->game->nNonPlayers ; i++) {
+                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->nonPlayers[i].pid);
+
+                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
+                if(fdWrGamePlayer == -1) {
+                    perror("Error openning game fifo\n"); 
+                }
+
+                size = write (fdWrGamePlayer, &plData->game, sizeof(GAME));
+            }
+            pthread_mutex_unlock(plData->mutexGame); 
         }
-        
     }
 
     pthread_exit(NULL);
