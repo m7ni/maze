@@ -34,6 +34,7 @@ typedef struct {
     GAME *game;
     int *stop;
     WINDOW *window;
+    int fdRdEngine;
 } RECGAMEDATA;
 
 int keyboardCmdGameUI(PLAYER *player, WINDOW *window);
@@ -47,4 +48,6 @@ void *threadRecMessages(void *data);
 void printmap(GAME game, WINDOW* wGame);
 
 void resizeHandler(int sig);
+
+void readMap(int fdRdEngine,WINDOW * window);
 #endif

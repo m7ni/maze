@@ -11,11 +11,11 @@ int main(int argc, char *argv[]) {
     pthread_mutex_t mutexGame;
     int stop = 0;
 
+    //Creating FIFO for accepting PLAYERS
     if(mkfifo(FIFO_ENGINE_ACP, 0666) == -1) {
         perror("Error opening fifo or another engine is already running\n"); 
         return -1;
     }   
-    
     setEnvVars();
     getEnvVars(&game, &acpData);
     
@@ -25,12 +25,12 @@ int main(int argc, char *argv[]) {
     acpData.stop = &stop;
     acpData.mutexGame = &mutexGame;
     
-    
     if(pthread_create(&threadACPID, NULL, &threadACP, &acpData)) {
         perror("Error creating threadACP\n");
         return -1;
     }
-    printf("\nThread create ACP");
+    printf("\nCreated thread ACP");
+    
     clkData.game = &game;
     clkData.stop = &stop;
     clkData.mutexGame = &mutexGame;
@@ -39,8 +39,10 @@ int main(int argc, char *argv[]) {
     
     if(pthread_create(&threadClockID, NULL, &threadClock, &clkData)) {
         perror("Error creating threadClock\n");
+
         return -1;
     }
+    printf("\nCreated thread Clock");
 
     createPipe(pipeBot,&game);
     
@@ -48,18 +50,24 @@ int main(int argc, char *argv[]) {
     kbData.stop = 0;
     kbData.mutexGame = &mutexGame;
     
-    //thread keyboard
-    if(pthread_create(&threadKBID, NULL, &threadKBEngine, &kbData))
-        return -1;
     
+    if(pthread_create(&threadKBID, NULL, &threadKBEngine, &kbData)){
+        perror("Error creating threadKB\n");
+        return -1;
+    }
+
+    printf("\nCreated thread Keyboard");
+
     //call placePlayers when the game starts
 
     plData.game = &game;
     plData.stop = 0;
     plData.mutexGame = &mutexGame;
 
-    if(pthread_create(&threadPlayersID, NULL, &threadPlayers, &plData))
+    if(pthread_create(&threadPlayersID, NULL, &threadPlayers, &plData)){
+        perror("Error creating threadPlayers\n");
         return -1;
+    } 
     
     pthread_join(threadACPID, NULL);
     pthread_join(threadClockID, NULL);
@@ -158,7 +166,7 @@ void *threadACP(void *data) {     //thread to accept players
 
         size = write (fdWrInitGameui, &player, sizeof(player));
         
-        printf("\nSent: %s com o tamanho [%d]", player.name, size);
+        printf("Sent: %s with size [%d]\n", player.name, size);
         
     }
     printf("Outside threadACP\n");
@@ -220,7 +228,6 @@ int launchBot(int *pipeBot, GAME *game){
         return -1;
     }
     if (pidBot == 0) {
-    
         if (dup2(pipeBot[1], STDOUT_FILENO) == -1) {
             perror("dup2");
             exit(EXIT_FAILURE);

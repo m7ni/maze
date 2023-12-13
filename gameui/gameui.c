@@ -104,13 +104,26 @@ int main(int argc, char *argv[]) {
 		playData.window = wComands;
 		int fdWrEngine = open(FIFO_ENGINE_GAME, O_WRONLY);
 		playData.fd = fdWrEngine;
+		
+		GAME game;
+		char pipeNameRecGame[30];
 
+		sprintf(pipeNameRecGame, FIFO_GAMEUI, getpid());
+
+		int fdRdEngine = open(pipeNameRecGame, O_RDWR);
+		if(fdRdEngine == -1) {
+			perror("Error openning gameui fifo\n"); 
+		}
+
+		printf("FIRST READ\n");
+
+		readmap(fdRdEngine,wGame);
 		
 		if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
 			perror("Error creating threadPlay\n");
 			//send player to engine to take him out of the game
 		}
-
+		printf("Created threadPlay\n");
 		recMSGData.window = wGeneral;
 		recMSGData.stop = &stop;
 
@@ -118,6 +131,7 @@ int main(int argc, char *argv[]) {
 			perror("Error creating threadRecGame\n");
 			//send player to engine to take hi out of the game
 		}
+		printf("Created threadRecMessages\n");
 	}	
 
 
@@ -281,29 +295,27 @@ void *threadPlay(void *data) {
 	pthread_exit(NULL);
 }
 
+void readMap(int fdRdEngine,WINDOW * window){
+	GAME game;
+	int size = 0;
+
+	size = read (fdRdEngine, &game, sizeof(GAME));
+	printf("\nReceived %d", game.level);
+	printmap(game, window);
+
+	//change the window
+	wrefresh(window);
+}
+
 void *threadRecGame(void *data) {
 	RECGAMEDATA *recGData = (RECGAMEDATA *) data;
-	GAME game;
-
-	char pipeNameRecGame[30];
-
-	sprintf(pipeNameRecGame, FIFO_GAMEUI, getpid());
-
-	int fdRdEngine = open(pipeNameRecGame, O_RDWR);
-    if(fdRdEngine == -1) {
-        perror("Error openning gameui fifo\n"); 
-    }
-
+	printf("Inside threadRecGame\n");
 	int size = 0;
 	while(recGData->stop) {
 		//read do jogo do engine	GAMEUI FIFO PID meu
-		size = read (fdRdEngine, &game, sizeof(GAME));
-		printf("\nReceived %d", game.level);
-		printmap(game, recGData->window);
-
-		//change the window
-		wrefresh(recGData->window);
+		readMap(recGData->fdRdEngine,recGData->window);
 	}
+	printf("Outside threadRecGame\n");
 	pthread_exit(NULL);
 }
 
@@ -312,7 +324,7 @@ void *threadRecMessages(void *data) {
 	MESSAGE msg;
 	char pipeNamePrivMSG[30];
 	int size = 0;
-
+	printf("Inside threadRecMessages\n");
 	//mkfifo PRIVATE MSG PID
 	sprintf(pipeNamePrivMSG, FIFO_PRIVATE_MSG, getpid());
 
@@ -337,6 +349,7 @@ void *threadRecMessages(void *data) {
 	close(fdRdPlayerMSG);
 	unlink(pipeNamePrivMSG);
 	
+	printf("Outside threadRecMessages\n");
 	pthread_exit(NULL);
 
 }
