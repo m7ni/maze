@@ -28,19 +28,20 @@ int main(int argc, char *argv[]) {
 
 	signal(SIGWINCH, resizeHandler);
 
-	player.pid = getpid();
+	char pipeNameRecEngine[30];
 
-	sprintf(pipeName, FIFO_GAMEUI, getpid());
+	sprintf(pipeNameRecEngine, FIFO_GAMEUI, getpid());
 
-	if(mkfifo(pipeName, 0666) == -1) {
-		perror("\nError creating gameui fifo\n");
-		return -1;
-    }
+	if(mkfifo(pipeNameRecEngine, 0666) == -1) {
+		perror("\nError creating pid message fifo\n");
+	}
 
-    int fdRdEngine = open(pipeName, O_RDWR);
+	int fdRdEngine = open(pipeNameRecEngine, O_RDWR);
     if(fdRdEngine == -1) {
-        perror("Error openning gameui fifo\n"); 
+        perror("Error openning engine game fifo\n"); 
     }
+
+	player.pid = getpid();
 	
 	//send player to engine to see if he can enter the gamemm
 	int size = write (fdWrInitEngine, &player, sizeof(PLAYER));
@@ -70,10 +71,10 @@ int main(int argc, char *argv[]) {
     init_pair(5, COLOR_YELLOW, COLOR_BLACK);
 	refresh(); 
 
-	wGame= newwin(30, 50, 1, 1);  
-	wComands = newwin(4, 50, 31, 1);   
-	wGeneral = newwin(6, 50, 35, 1);   
-	wInfo = newwin(5, 50, 41, 1);   
+	wGame= newwin(18, 42, 1, 1);  
+	wComands = newwin(4, 42, 19, 1);   
+	wGeneral = newwin(6, 42, 24, 1);   
+	wInfo = newwin(5, 42, 30, 1);   
 
 	box(wGame,0,0);
 	box(wComands,0,0);
@@ -106,24 +107,17 @@ int main(int argc, char *argv[]) {
 		playData.fd = fdWrEngine;
 		
 		GAME game;
-		char pipeNameRecGame[30];
 
-		sprintf(pipeNameRecGame, FIFO_GAMEUI, getpid());
+		//printf("FIRST READ\n");
 
-		int fdRdEngine = open(pipeNameRecGame, O_RDWR);
-		if(fdRdEngine == -1) {
-			perror("Error openning gameui fifo\n"); 
-		}
+		readMap(fdRdEngine,wGame);
+		//printf("\nALREADY READ");
 
-		printf("FIRST READ\n");
-
-		readmap(fdRdEngine,wGame);
-		
 		if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
 			perror("Error creating threadPlay\n");
 			//send player to engine to take him out of the game
 		}
-		printf("Created threadPlay\n");
+		//printf("Created threadPlay\n");
 		recMSGData.window = wGeneral;
 		recMSGData.stop = &stop;
 
@@ -131,13 +125,16 @@ int main(int argc, char *argv[]) {
 			perror("Error creating threadRecGame\n");
 			//send player to engine to take hi out of the game
 		}
-		printf("Created threadRecMessages\n");
+		//printf("Created threadRecMessages\n");
 	}	
 
+
+	
 
 	//thread rec game		
 	recGameData.stop = &stop;
 	recGameData.window = wGame;
+	recGameData.fdRdEngine = fdRdEngine;
 
 	
 	if(pthread_create(&threadRecGameID, NULL, &threadRecGame, &recGameData)) {
@@ -269,7 +266,7 @@ void *threadPlay(void *data) {
 				}
 
 				size = write (fdWrPlayer, &msg, sizeof(MESSAGE));
-				printf("Sent: Player %s sent %s e o tamanho [%d]\n", msg.namePlayerSentMessage, msg.msg, size);
+				//printf("Sent: Player %s sent %s e o tamanho [%d]\n", msg.namePlayerSentMessage, msg.msg, size);
 
 			}
 
@@ -295,12 +292,13 @@ void *threadPlay(void *data) {
 	pthread_exit(NULL);
 }
 
+
 void readMap(int fdRdEngine,WINDOW * window){
 	GAME game;
 	int size = 0;
 
 	size = read (fdRdEngine, &game, sizeof(GAME));
-	printf("\nReceived %d", game.level);
+	
 	printmap(game, window);
 
 	//change the window
@@ -309,13 +307,13 @@ void readMap(int fdRdEngine,WINDOW * window){
 
 void *threadRecGame(void *data) {
 	RECGAMEDATA *recGData = (RECGAMEDATA *) data;
-	printf("Inside threadRecGame\n");
+	//printf("Inside threadRecGame\n");
 	int size = 0;
 	while(recGData->stop) {
 		//read do jogo do engine	GAMEUI FIFO PID meu
 		readMap(recGData->fdRdEngine,recGData->window);
 	}
-	printf("Outside threadRecGame\n");
+	//printf("Outside threadRecGame\n");
 	pthread_exit(NULL);
 }
 
@@ -324,7 +322,7 @@ void *threadRecMessages(void *data) {
 	MESSAGE msg;
 	char pipeNamePrivMSG[30];
 	int size = 0;
-	printf("Inside threadRecMessages\n");
+	//printf("Inside threadRecMessages\n");
 	//mkfifo PRIVATE MSG PID
 	sprintf(pipeNamePrivMSG, FIFO_PRIVATE_MSG, getpid());
 
@@ -349,30 +347,41 @@ void *threadRecMessages(void *data) {
 	close(fdRdPlayerMSG);
 	unlink(pipeNamePrivMSG);
 	
-	printf("Outside threadRecMessages\n");
+	//printf("Outside threadRecMessages\n");
 	pthread_exit(NULL);
 
 }
 
 void printmap(GAME game, WINDOW* wGame){
 
-    int width=16;
-    int height=40;
-
 	init_pair(1, COLOR_YELLOW, COLOR_BLUE);
 	init_pair(2, COLOR_YELLOW, COLOR_RED);
-        
-	for(int i = 0 ; i < height ; i++) {
-		for(int j=0 ; j < width ; j++){
-			if(game.map[i][j]=='X'){
-				attron(COLOR_PAIR(1));
-				mvwprintw(wGame,i,j,"X");
-				attroff(COLOR_PAIR(1));
+
+	for(int i = 0 ; i < 16 ; i++) {
+		for(int j=0 ; j < 40 ; j++){
+			if(game.map[i][j] == 'x'){
+				attron(COLOR_PAIR(2));
+				mvwprintw(wGame,i+1,j+1,"X");
+				attroff(COLOR_PAIR(2));
 			}
 			else if(game.map[i][j] == ' '){
-				mvwprintw(wGame,i,j," ");
+				mvwprintw(wGame,i+1,j+1," ");
+			} 
+			else if(game.map[i][j] == '0') {
+				mvwprintw(wGame,i+1,j+1,"0");
+			}
+			else if(game.map[i][j] == '1') {
+				mvwprintw(wGame,i+1,j+1,"1");
+			}
+			else if(game.map[i][j] == '2') {
+				mvwprintw(wGame,i+1,j+1,"2");
+			}
+			else if(game.map[i][j] == '3') {
+				mvwprintw(wGame,i+1,j+1,"3");
+			}
+			else if(game.map[i][j] == '4') {
+				mvwprintw(wGame,i+1,j+1,"4");
 			}
 		}
 	}
-	
 }

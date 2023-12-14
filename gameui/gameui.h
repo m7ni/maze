@@ -49,5 +49,5 @@ void printmap(GAME game, WINDOW* wGame);
 
 void resizeHandler(int sig);
 
-void readMap(int fdRdEngine,WINDOW * window);
+void readMap(int fdRdEngine, WINDOW * window);
 #endif

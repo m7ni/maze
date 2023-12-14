@@ -78,6 +78,8 @@ int main(int argc, char *argv[]) {
 void *threadClock(void* data){
     CLKDATA *clkData = (CLKDATA *) data;
     printf("Inside threadClock\n");
+    int size = 0;
+    char pipeNameGamePlayer[30];
 
     while(clkData->stop) {
         sleep(1);
@@ -90,10 +92,30 @@ void *threadClock(void* data){
         } else if(clkData->game->timeleft == 0 && clkData->game->level == 0){
             printf("Time to enroll has passed\n");
             passLevel(clkData->game);
+            for(int i = 0 ; i < clkData->game->nPlayers ; i++) {
+                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, clkData->game->players[i].pid);
+
+                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
+                if(fdWrGamePlayer == -1) {
+                    perror("Error openning game fifo\n"); 
+                }
+
+                size = write (fdWrGamePlayer, clkData->game, sizeof(GAME));
+            }
+            for(int i = 0 ; i < clkData->game->nNonPlayers ; i++) {
+                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, clkData->game->nonPlayers[i].pid);
+
+                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
+                if(fdWrGamePlayer == -1) {
+                    perror("Error openning game fifo\n"); 
+                }
+
+                size = write (fdWrGamePlayer, clkData->game, sizeof(GAME));
+            }
+
         }
         pthread_mutex_unlock(clkData->mutexGame);
 
-        //mutex unlock
     }
     printf("Outside threadClock\n");
     pthread_exit(NULL);
@@ -137,7 +159,13 @@ void *threadACP(void *data) {     //thread to accept players
 
             if(flag == 0) {
                 player.accepted = 1;
-                player.skin = acpData->game->nPlayers;
+                switch(acpData->game->nPlayers) {
+                    case 0: player.skin = '0'; break;
+                    case 1: player.skin = '1'; break;
+                    case 2: player.skin = '2'; break;
+                    case 3: player.skin = '3'; break;
+                    case 4: player.skin = '4'; break;
+                }
                 acpData->game->players[acpData->game->nPlayers] = player;
                 acpData->game->nPlayers++;
 
@@ -293,7 +321,7 @@ void initGame(GAME *game) {
     game->nPlayers = 0;
     game->nBots = 0;
     game->nNonPlayers = 0;
-    game->timeleft = 20;
+    game->timeleft = 10;
 }
  
 void *threadKBEngine(void *data) {        //thread to receive commands from the kb
@@ -469,24 +497,35 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
         skin = player->skin;
     }
 
+    printf("\nSkin: %c", skin);
+    printf("\nMove: %d\n", move);
+    printf("\nLevel: %d\n", game->level);
+    printf("\nPOSITION: before [%d][%d]", player->position[0], player->position[1]);
+    
+
+    
     switch (move) {
         case 0:     //left
+        printf("\nThere is a [%c]", game->map[player->position[0]][player->position[1] - 1]);
             if(game->map[player->position[0]][player->position[1] - 1] == ' ') {
-                game->map[player->position[0]][player->position[1] - 1] == skin;
-                game->map[player->position[0]][player->position[1]] == ' ';
+                printf("\nENTREI");
+                game->map[player->position[0]][player->position[1] - 1] = skin;
+                game->map[player->position[0]][player->position[1]] = ' ';
 
                 player->position[1] = player->position[1] - 1;
             }
             break;
         case 1:     //up
+            printf("\nUUUUUP");
+            printf("\nThere is a [%c]", game->map[player->position[0] - 1][player->position[1]]);
             if(game->map[player->position[0] - 1][player->position[1]] == ' ') {
+                printf("\nENTREI");
                 if(player->position[0 - 1] == 0) {
                     flagWin = 1;
                 }
 
-                game->map[player->position[0] - 1][player->position[1]] == skin;
-                game->map[player->position[0]][player->position[1]] == ' ';
-
+                game->map[player->position[0] - 1][player->position[1]] = skin;
+                game->map[player->position[0]][player->position[1]] = ' ';
                 player->position[0] = player->position[0] - 1;
 
                 if(flagWin == 1) {
@@ -495,22 +534,29 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
             }
             break;
         case 2:     //right
+        printf("\nRIIIGHT");
+        printf("\nThere is a [%c]", game->map[player->position[0]][player->position[1] + 1]);
             if(game->map[player->position[0]][player->position[1] + 1] == ' ') {
-                game->map[player->position[0]][player->position[1] + 1] == skin;
-                game->map[player->position[0]][player->position[1]] == ' ';
+                printf("\nENTREI");
+                game->map[player->position[0]][player->position[1] + 1] = skin;
+                game->map[player->position[0]][player->position[1]] = ' ';
 
                 player->position[1] = player->position[1] + 1;
             }
             break;
         case 3:     //down
+        printf("\nDOWWWN");
+        printf("\nThere is a [%c]", game->map[player->position[0] + 1][player->position[1]]);
             if(game->map[player->position[0] + 1][player->position[1]] == ' ') {
-                game->map[player->position[0] + 1][player->position[1]] == skin;
-                game->map[player->position[0]][player->position[1]] == ' ';
+                printf("\nENTREI");
+                game->map[player->position[0] + 1][player->position[1]] = skin;
+                game->map[player->position[0]][player->position[1]] = ' ';
 
                 player->position[0] = player->position[0] + 1;
             }
             break;
     }
+    printf("\nPOSITION: after [%d][%d]\n", player->position[0], player->position[1]);
 }
 
 void *threadPlayers(void *data) {
@@ -532,6 +578,22 @@ void *threadPlayers(void *data) {
         //read the player ENGINE FIFO GAME
         size = read (fdRdPlayerMoves, &player, sizeof(PLAYER));
         printf("\nReceived player: %s with move: %d\n", player.name, player.move);
+        int indice;
+        if(player.skin == '0') {
+            indice = 0;
+        } else if(player.skin == '1') {
+            indice = 1;
+        } else if(player.skin == '2') {
+            indice = 2;
+        } else if(player.skin == '3') {
+            indice = 3;
+        } else if(player.skin == '4') {
+            indice = 4;
+        }
+        plData->game->players[indice].move = player.move;
+        
+
+
 
         if(player.move == -2) {     //player sent a msg
             pthread_mutex_lock(plData->mutexGame); 
@@ -546,6 +608,10 @@ void *threadPlayers(void *data) {
                     if(fdWrPIDPlayer == -1) {
                         perror("Error openning pid message fifo\n"); 
                     }
+
+                    strcpy(plData->game->players[indice].personNameMessage, player.personNameMessage);
+                    strcpy(plData->game->players[indice].command, player.command);
+                    strcpy(plData->game->players[indice].message, player.message);
 
                     size = write (fdWrPIDPlayer, &msg, sizeof(MESSAGE));
 
@@ -572,14 +638,14 @@ void *threadPlayers(void *data) {
             }
         } else { //move normal
             //send to function the player from game (game.player[i])
-            pthread_mutex_lock(plData->mutexGame);  //ver se se mete aqui o mutex ou mesmo lá dentro
+            //pthread_mutex_lock(plData->mutexGame);  //ver se se mete aqui o mutex ou mesmo lá dentro
             for(int i = 0 ; i < plData->game->nPlayers ; i++) {
                 if(strcmp(plData->game->players[i].name, player.name) == 0) {
                     movePlayer(plData->game, &plData->game->players[i], NULL);
                     break;
                 }
             }
-            pthread_mutex_unlock(plData->mutexGame); 
+            //pthread_mutex_unlock(plData->mutexGame); 
             //send to all players the new game -> passar function
             
             pthread_mutex_lock(plData->mutexGame); 
@@ -590,7 +656,12 @@ void *threadPlayers(void *data) {
                 if(fdWrGamePlayer == -1) {
                     perror("Error openning game fifo\n"); 
                 }
-
+                for(int i = 0 ; i < 16 ; i++) {
+                    for(int j = 0 ; j < 40 ; j++) {
+                        printf("%c", plData->game->map[i][j]);
+                    }
+                    printf("\n");
+                }
                 size = write (fdWrGamePlayer, plData->game, sizeof(GAME));
             }
             for(int i = 0 ; i < plData->game->nNonPlayers ; i++) {
@@ -611,16 +682,18 @@ void *threadPlayers(void *data) {
 }
 
 void placePlayers(GAME *game) {
-    int colRand = rand() % 39 + 1;
-
+    int colRand = rand() % 40 + 1;
     for(int i = 0 ; i < game->nPlayers ; i++) {
-        srand(time(NULL));
-        colRand = rand() % 39 + 1;
-        if(game->map[14][colRand] == ' ') {
+        do {
+            srand(time(NULL));
+            colRand = rand() % 40 + 1;
             game->map[14][colRand] = game->players[i].skin;
             game->players[i].position[0] = 14;
             game->players[i].position[1] = colRand;
-        }
+
+        } while(game->map[14][colRand] == ' ');
+
+        printf("\nSkin: %c, Position [%d][%d]\n", game->players[i].skin, game->players[i].position[0], game->players[i].position[1]);
     }
 }
 
@@ -629,6 +702,12 @@ void passLevel(GAME *game) {
     game->level += 1;
     readFileMap(game->level, game);
     placePlayers(game);
+    for(int i = 0 ; i < 16 ; i++) {
+        for(int j = 0 ; j < 40 ; j++) {
+            printf("%c", game->map[i][j]);
+        }
+        printf("\n");
+    }
     game->time = game->time - game->timeDec;
     game->timeleft = game->time;
 }
