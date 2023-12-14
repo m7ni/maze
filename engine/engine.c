@@ -508,7 +508,6 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
         case 0:     //left
         printf("\nThere is a [%c]", game->map[player->position[0]][player->position[1] - 1]);
             if(game->map[player->position[0]][player->position[1] - 1] == ' ') {
-                printf("\nENTREI");
                 game->map[player->position[0]][player->position[1] - 1] = skin;
                 game->map[player->position[0]][player->position[1]] = ' ';
 
@@ -519,7 +518,6 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
             printf("\nUUUUUP");
             printf("\nThere is a [%c]", game->map[player->position[0] - 1][player->position[1]]);
             if(game->map[player->position[0] - 1][player->position[1]] == ' ') {
-                printf("\nENTREI");
                 if(player->position[0 - 1] == 0) {
                     flagWin = 1;
                 }
@@ -537,7 +535,6 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
         printf("\nRIIIGHT");
         printf("\nThere is a [%c]", game->map[player->position[0]][player->position[1] + 1]);
             if(game->map[player->position[0]][player->position[1] + 1] == ' ') {
-                printf("\nENTREI");
                 game->map[player->position[0]][player->position[1] + 1] = skin;
                 game->map[player->position[0]][player->position[1]] = ' ';
 
@@ -548,7 +545,6 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
         printf("\nDOWWWN");
         printf("\nThere is a [%c]", game->map[player->position[0] + 1][player->position[1]]);
             if(game->map[player->position[0] + 1][player->position[1]] == ' ') {
-                printf("\nENTREI");
                 game->map[player->position[0] + 1][player->position[1]] = skin;
                 game->map[player->position[0]][player->position[1]] = ' ';
 
