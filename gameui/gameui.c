@@ -252,8 +252,9 @@ void *threadPlay(void *data) {
 					perror("Error openning pid message fifo\n"); 
 				}
 
-				size = read (fdRdEngPIDPlayer, &msg, sizeof(MESSAGE));
-
+				size = read(fdRdEngPIDPlayer, &msg, sizeof(MESSAGE));
+				printf("",msg.pipeName);
+				
 				if(strcmp(msg.pipeName, "error") == 0)
 					break;
 
@@ -280,7 +281,7 @@ void *threadPlay(void *data) {
 		if(plData->player->move != -2) {
 			//send player to engine ENGINE FIFO GAME
 			size = write (plData->fd, plData->player, sizeof(PLAYER));
-			printf("Sent: %s com a move %d e o tamanho [%d]\n", plData->player->name, plData->player->move, size);
+			//printf("Sent: %s com a move %d e o tamanho [%d]\n", plData->player->name, plData->player->move, size);
 		}
 
       	if (p != NULL) {

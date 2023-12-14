@@ -1,3 +1,4 @@
+
 #include "engine.h"
 
 int main(int argc, char *argv[]) {
@@ -560,6 +561,7 @@ void *threadPlayers(void *data) {
     int size = 0;
     PLAYER player;
     MESSAGE msg;
+    int flag = 1;
 
     printf("\nInside thread Players\n");
     if(mkfifo(FIFO_ENGINE_GAME, 0666) == -1) {
@@ -588,14 +590,15 @@ void *threadPlayers(void *data) {
         }
         plData->game->players[indice].move = player.move;
         
-
-
-
         if(player.move == -2) {     //player sent a msg
+            printf("\nName: %s",player.personNameMessage);
+            printf("\nNP: %d",plData->game->nPlayers);
             pthread_mutex_lock(plData->mutexGame); 
-            for(int i = 0 ; i < plData->game->nPlayers; i++) {
+            for(int i = 0 ; i < plData->game->nPlayers+1; i++) {
+                printf("\nNamePlayers: %s", plData->game->players[i].name);
                 if(strcmp(player.personNameMessage, plData->game->players[i].name) == 0) {
-                    sprintf(msg.pipeName, FIFO_PRIVATE_MSG, plData->game->players[i].pid);
+                    printf("\nENTREII");
+                    sprintf(msg.pipeName, FIFO_PID_MSG, plData->game->players[i].pid);
                     //send to the player the struct message
                     char pipeNamePIDPlayer[30];
                     sprintf(pipeNamePIDPlayer, FIFO_PRIVATE_MSG, player.pid);
@@ -605,14 +608,29 @@ void *threadPlayers(void *data) {
                         perror("Error openning pid message fifo\n"); 
                     }
 
-                    strcpy(plData->game->players[indice].personNameMessage, player.personNameMessage);
+                    strcpy(plData->game->players[indice].personNameMessage, player.name);
                     strcpy(plData->game->players[indice].command, player.command);
                     strcpy(plData->game->players[indice].message, player.message);
-
+                    printf("\nName: %s, Message: %s", plData->game->players[indice].personNameMessage, plData->game->players[indice].message);
                     size = write (fdWrPIDPlayer, &msg, sizeof(MESSAGE));
-
+                    flag = 0;
                     break;
+                } 
+                flag = 1;
+            }
+            printf("Flag %d", flag);
+            if(flag == 1) {
+                char pipeNamePIDPlayer[30];
+                sprintf(pipeNamePIDPlayer, FIFO_PID_MSG, player.pid);
+
+                int fdWrPIDPlayer = open(pipeNamePIDPlayer, O_RDWR);
+                if(fdWrPIDPlayer == -1) {
+                    perror("Error openning pid message fifo\n"); 
                 }
+
+                strcpy(msg.pipeName, "error");
+
+                size = write (fdWrPIDPlayer, &msg, sizeof(MESSAGE));
             }
             pthread_mutex_unlock(plData->mutexGame); 
             
@@ -683,11 +701,13 @@ void placePlayers(GAME *game) {
         do {
             srand(time(NULL));
             colRand = rand() % 40 + 1;
-            game->map[14][colRand] = game->players[i].skin;
-            game->players[i].position[0] = 14;
-            game->players[i].position[1] = colRand;
-
-        } while(game->map[14][colRand] == ' ');
+            if(game->map[14][colRand] == ' ') {
+                game->map[14][colRand] = game->players[i].skin;
+                game->players[i].position[0] = 14;
+                game->players[i].position[1] = colRand;
+                break;
+            }
+        } while(1);
 
         printf("\nSkin: %c, Position [%d][%d]\n", game->players[i].skin, game->players[i].position[0], game->players[i].position[1]);
     }
