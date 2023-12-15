@@ -507,7 +507,7 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
     
     switch (move) {
         case 0:     //left
-        printf("\nThere is a [%c]", game->map[player->position[0]][player->position[1] - 1]);
+            //printf("\nThere is a [%c]", game->map[player->position[0]][player->position[1] - 1]);
             if(game->map[player->position[0]][player->position[1] - 1] == ' ') {
                 game->map[player->position[0]][player->position[1] - 1] = skin;
                 game->map[player->position[0]][player->position[1]] = ' ';
@@ -516,12 +516,12 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
             }
             break;
         case 1:     //up
-            printf("\nUUUUUP");
-            printf("\nThere is a [%c]", game->map[player->position[0] - 1][player->position[1]]);
+            //printf("\nThere is a [%c]", game->map[player->position[0] - 1][player->position[1]]);
             if(game->map[player->position[0] - 1][player->position[1]] == ' ') {
-                if(player->position[0 - 1] == 0) {
+                if(player->position[0] - 1 == 0) {
                     flagWin = 1;
                 }
+
 
                 game->map[player->position[0] - 1][player->position[1]] = skin;
                 game->map[player->position[0]][player->position[1]] = ' ';
@@ -529,12 +529,13 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
 
                 if(flagWin == 1) {
                     //call function to pass the level and initiate the game again
+                    flagWin = 0;
+                    passLevel(game);
                 }
             }
             break;
         case 2:     //right
-        printf("\nRIIIGHT");
-        printf("\nThere is a [%c]", game->map[player->position[0]][player->position[1] + 1]);
+            //printf("\nThere is a [%c]", game->map[player->position[0]][player->position[1] + 1]);
             if(game->map[player->position[0]][player->position[1] + 1] == ' ') {
                 game->map[player->position[0]][player->position[1] + 1] = skin;
                 game->map[player->position[0]][player->position[1]] = ' ';
@@ -543,8 +544,7 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
             }
             break;
         case 3:     //down
-        printf("\nDOWWWN");
-        printf("\nThere is a [%c]", game->map[player->position[0] + 1][player->position[1]]);
+            //printf("\nThere is a [%c]", game->map[player->position[0] + 1][player->position[1]]);
             if(game->map[player->position[0] + 1][player->position[1]] == ' ') {
                 game->map[player->position[0] + 1][player->position[1]] = skin;
                 game->map[player->position[0]][player->position[1]] = ' ';
@@ -553,7 +553,7 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle){    //meter es
             }
             break;
     }
-    printf("\nPOSITION: after [%d][%d]\n", player->position[0], player->position[1]);
+    //printf("\nPOSITION: after [%d][%d]\n", player->position[0], player->position[1]);
 }
 
 void *threadPlayers(void *data) {
@@ -726,6 +726,7 @@ void placePlayers(GAME *game) {
 void passLevel(GAME *game) {
     game->start = 1;
     game->level += 1;
+    printf("AAAA");
     readFileMap(game->level, game);
     placePlayers(game);
     for(int i = 0 ; i < 16 ; i++) {

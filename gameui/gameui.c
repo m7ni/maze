@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
 	wrefresh(wInfo);
 
 	if(player.accepted == 1) {		//normal player
-		printf("Normal player\n"); 
+		//printf("Normal player\n"); 
 
 		playData.player = &player;
 		playData.stop = &stop;
@@ -108,10 +108,7 @@ int main(int argc, char *argv[]) {
 		
 		GAME game;
 
-		//printf("FIRST READ\n");
-
 		readMap(fdRdEngine,wGame);
-		//printf("\nALREADY READ");
 
 		if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
 			perror("Error creating threadPlay\n");
@@ -126,9 +123,9 @@ int main(int argc, char *argv[]) {
 			//send player to engine to take hi out of the game
 		}
 		//printf("Created threadRecMessages\n");
-	}	
-
-
+	} else {
+		readMap(fdRdEngine,wGame);
+	}
 	
 
 	//thread rec game		
@@ -166,13 +163,16 @@ int keyboardCmdGameUI(PLAYER *player, WINDOW *wComands) {
 		strcpy(player->personNameMessage, str2);
 		strcpy(player->message, str3);
 		//wprintw(window,"\%s, %s, %s\n", str1, str2, str3);
+		//wclear(wComands);
 		return 2;
 	} else {
 		if(strcmp(cmd, "players") == 0) {
 			strcpy(player->command, cmd);
+			//wclear(wComands);
 			return 1;
 		}else if(strcmp(cmd, "exit") == 0) {
 			strcpy(player->command, cmd);
+			//wclear(wComands);
 			return -1;
 		} else {
 			return 0;
@@ -247,7 +247,7 @@ void *threadPlay(void *data) {
 
 				MESSAGE msg;
 				char xpto[100];
-				mvprintw(1,1,"Estou a escuta neste pipe: %s", pipeNamePIDPlayer);
+				//mvprintw(1,1,"Estou a escuta neste pipe: %s", pipeNamePIDPlayer);
 				refresh();
 				int fdRdEngPIDPlayer = open(pipeNamePIDPlayer, O_RDONLY);
 				if(fdRdEngPIDPlayer == -1) {
@@ -257,7 +257,7 @@ void *threadPlay(void *data) {
 				size = read(fdRdEngPIDPlayer, &msg, sizeof(msg));
 				close(fdRdEngPIDPlayer);
 				if (size > 0){
-				mvprintw(2,1,"Recebi este nome de pipe %s, e este size %d" ,msg.pipeName,size);
+				//mvprintw(2,1,"Recebi este nome de pipe %s, e este size %d" ,msg.pipeName,size);
 
 				refresh();
 				if(strcmp(msg.pipeName, "error") == 0)
@@ -271,11 +271,10 @@ void *threadPlay(void *data) {
 				if(fdWrPlayer == -1) {
 					perror("Error openning private message fifo\n"); 
 				}
-				mvprintw(4,1,"Antes da escrita");
-refresh();
+				//mvprintw(4,1,"Antes da escrita");
+
 				size = write (fdWrPlayer, &msg, sizeof(MESSAGE));
-				mvprintw(5,1,"Depois da escrita");
-				refresh();
+				//mvprintw(5,1,"Depois da escrita");
 				close(fdWrPlayer);
 				//printf("Sent: Player %s sent %s e o tamanho [%d]\n", msg.namePlayerSentMessage, msg.msg, size);
 }		
@@ -295,7 +294,6 @@ refresh();
 		}
 
       	if (p != NULL) {
-         	wprintw(plData->window, "%s\n", p);   // reparar "w" inicial: imprime na janela
          	p = NULL;
          	wrefresh(plData->window); 
       	}
@@ -352,8 +350,8 @@ void *threadRecMessages(void *data) {
 		size = read (fdRdPlayerMSG, &msg, sizeof(MESSAGE));
 
 		//show player the msg from the other player
-		//wprintw(recMSGData->window, "Player %s sent you:\n\t%s", msg.namePlayerSentMessage, msg.msg);
-		mvprintw(7, 1, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
+		mvprintw(25, 2, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
+		//wprintw(recMSGData->window,"Player %s sent you:\n%s", msg.namePlayerSentMessage, msg.msg);
 
 		refresh();
 	}
