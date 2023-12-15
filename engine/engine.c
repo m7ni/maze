@@ -595,24 +595,34 @@ void *threadPlayers(void *data) {
             printf("\nNP: %d",plData->game->nPlayers);
             pthread_mutex_lock(plData->mutexGame); 
             for(int i = 0 ; i < plData->game->nPlayers+1; i++) {
-                printf("\nNamePlayers: %s", plData->game->players[i].name);
+                printf("\nNamePlayers: %s %d", plData->game->players[i].name,plData->game->nPlayers);
                 if(strcmp(player.personNameMessage, plData->game->players[i].name) == 0) {
                     printf("\nENTREII");
-                    sprintf(msg.pipeName, FIFO_PID_MSG, plData->game->players[i].pid);
+                    sprintf(msg.pipeName, FIFO_PRIVATE_MSG, plData->game->players[i].pid);
+                    
+
                     //send to the player the struct message
                     char pipeNamePIDPlayer[30];
-                    sprintf(pipeNamePIDPlayer, FIFO_PRIVATE_MSG, player.pid);
+                    sprintf(pipeNamePIDPlayer, FIFO_PID_MSG, player.pid);
 
-                    int fdWrPIDPlayer = open(pipeNamePIDPlayer, O_RDWR);
+                    printf("\nPipename do player que se vai enviar msg: %s", msg.pipeName);
+                    printf("\nPipename que vai ser para enviar o nome do pipe dooutro player: %s", pipeNamePIDPlayer);
+                    
+                    printf("\nPassei o open\n");
+                    printf("\nIndice: %d", indice);
+                    strcpy(plData->game->players[indice].personNameMessage, player.name);
+                    //strcpy(plData->game->players[indice].command, player.command);
+                    strcpy(plData->game->players[indice].message, player.message);
+                    
+                    //("\nName: %s, Message: %s", plData->game->players[indice].personNameMessage, plData->game->players[indice].message);
+                    int fdWrPIDPlayer = open(pipeNamePIDPlayer, O_WRONLY);
+                    printf("\nAntes do write %d\n",fdWrPIDPlayer);
                     if(fdWrPIDPlayer == -1) {
                         perror("Error openning pid message fifo\n"); 
                     }
-
-                    strcpy(plData->game->players[indice].personNameMessage, player.name);
-                    strcpy(plData->game->players[indice].command, player.command);
-                    strcpy(plData->game->players[indice].message, player.message);
-                    printf("\nName: %s, Message: %s", plData->game->players[indice].personNameMessage, plData->game->players[indice].message);
                     size = write (fdWrPIDPlayer, &msg, sizeof(MESSAGE));
+                    close(fdWrPIDPlayer);
+                    printf("\nDepois di write %d",size);
                     flag = 0;
                     break;
                 } 

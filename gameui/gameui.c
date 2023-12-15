@@ -246,18 +246,24 @@ void *threadPlay(void *data) {
 				size = write (plData->fd, plData->player, sizeof(PLAYER));
 
 				MESSAGE msg;
-				
-				int fdRdEngPIDPlayer = open(pipeNamePIDPlayer, O_RDWR);
+				char xpto[100];
+				mvprintw(1,1,"Estou a escuta neste pipe: %s", pipeNamePIDPlayer);
+				refresh();
+				int fdRdEngPIDPlayer = open(pipeNamePIDPlayer, O_RDONLY);
 				if(fdRdEngPIDPlayer == -1) {
 					perror("Error openning pid message fifo\n"); 
 				}
 
-				size = read(fdRdEngPIDPlayer, &msg, sizeof(MESSAGE));
-				printf("",msg.pipeName);
-				
+				size = read(fdRdEngPIDPlayer, &msg, sizeof(msg));
+				close(fdRdEngPIDPlayer);
+				if (size > 0){
+				mvprintw(2,1,"Recebi este nome de pipe %s, e este size %d" ,msg.pipeName,size);
+
+				refresh();
 				if(strcmp(msg.pipeName, "error") == 0)
 					break;
 
+				
 				strcpy(msg.msg, plData->player->message);
 				strcpy(msg.namePlayerSentMessage, plData->player->name);
 				//write to player pipe name
@@ -265,10 +271,14 @@ void *threadPlay(void *data) {
 				if(fdWrPlayer == -1) {
 					perror("Error openning private message fifo\n"); 
 				}
-
+				mvprintw(4,1,"Antes da escrita");
+refresh();
 				size = write (fdWrPlayer, &msg, sizeof(MESSAGE));
+				mvprintw(5,1,"Depois da escrita");
+				refresh();
+				close(fdWrPlayer);
 				//printf("Sent: Player %s sent %s e o tamanho [%d]\n", msg.namePlayerSentMessage, msg.msg, size);
-
+}		
 			}
 
          	noecho();        // Volta a desligar o echo das teclas premidas
@@ -342,8 +352,10 @@ void *threadRecMessages(void *data) {
 		size = read (fdRdPlayerMSG, &msg, sizeof(MESSAGE));
 
 		//show player the msg from the other player
-		wprintw(recMSGData->window, "Player %s sent you:\n\t%s", msg.namePlayerSentMessage, msg.msg);
-		
+		//wprintw(recMSGData->window, "Player %s sent you:\n\t%s", msg.namePlayerSentMessage, msg.msg);
+		mvprintw(7, 1, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
+
+		refresh();
 	}
 	close(fdRdPlayerMSG);
 	unlink(pipeNamePrivMSG);
