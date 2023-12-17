@@ -199,7 +199,7 @@ void *threadClock(void *data)
                 }
             }
 
-            for (int i = 0; i < clkData->game->nBots; i++)
+            for (int i = 0; i < clkData->game->nObs; i++)
             {
                 movePlayer(clkData->game, NULL, &clkData->game->obstacle[i]);
                 sendMap(clkData->game);
@@ -285,7 +285,13 @@ void *threadACP(void *data)
         }
 
         pthread_mutex_lock(acpData->mutexGame);
-        // sleep timeErolment
+        // sleep 
+        printf("acpData->game->nPlayers %d\n",acpData->game->nPlayers);
+        printf("acpData->game->level %d\n",acpData->game->level);
+        printf("acpData->game->start %d\n",acpData->game->start);
+        printf("acpData->timeEnrolment %d\n",acpData->timeEnrolment);
+
+
         if (acpData->game->nPlayers < 5 && acpData->game->level == 0 && acpData->game->start == 0 && acpData->timeEnrolment > 0)
         {
             for (i = 0; i < acpData->game->nPlayers; i++)
@@ -514,6 +520,7 @@ void initGame(GAME *game)
     game->nBots = 0;
     game->nNonPlayers = 0;
     game->nObs = 0;
+    game->start = 0;
 
     // game->timeleft = 10;
 }
@@ -651,13 +658,18 @@ void *threadKBEngine(void *data)
 
 void removeDynamicObstacle(GAME *game)
 {
-
+    
     for (int i = 0; i < game->nObs - 1; i++)
     {
         DINAMICOBS obs;
+        if(i==0){
+            game->map[game->obstacle[i].position[0]][game->obstacle[i].position[1]] = ' ';
+            sendMap(game);
+        }
         game->obstacle[i] = game->obstacle[i + 1];
     }
-    game->nBots--;
+    game->nObs--;
+    printf("nObs %d", game->nObs);
 }
 
 void insertDynamicObstacle(GAME *game)
@@ -670,11 +682,11 @@ void insertDynamicObstacle(GAME *game)
         srand(time(NULL));
         x = rand() % NCOL;
         y = rand() % NLIN;
-        if (game->map[x][y] == ' ')
+        if (game->map[y][x] == ' ')
         {
-            game->map[x][y] = 'O';
-            obs.position[0] = x;
-            obs.position[1] = y;
+            game->map[y][x] = 'O';
+            obs.position[0] = y;
+            obs.position[1] = x;
             game->obstacle[game->nObs++] = obs;
             break;
         }
@@ -752,41 +764,46 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
     int flagWin = 0;
     int move;
     char skin;
-
+    int lin;
+    int col;
     if (player == NULL)
     { // dynamic obstacle
         srand(time(NULL));
         move = rand() % 4 + 1;
-        skin = 'O';
+        skin = obstacle->skin;
+        lin = obstacle->position[0];
+        col = obstacle->position[1];
     }
     else
     {
         move = player->move;
         skin = player->skin;
+        lin = player->position[0];
+        col = player->position[1];
     }
 
     switch (move)
     {
     case 0: // left
-        if (game->map[player->position[0]][player->position[1] - 1] == ' ')
+        if (game->map[lin][col - 1] == ' ')
         {
-            game->map[player->position[0]][player->position[1] - 1] = skin;
-            game->map[player->position[0]][player->position[1]] = ' ';
+            game->map[lin][col - 1] = skin;
+            game->map[lin][col] = ' ';
 
-            player->position[1] = player->position[1] - 1;
+            col = col - 1;
         }
         break;
     case 1: // up
-        if (game->map[player->position[0] - 1][player->position[1]] == ' ')
+        if (game->map[lin - 1][col] == ' ')
         {
-            if (player->position[0] - 1 == 0)
+            if (lin - 1 == 0)
             {
                 flagWin = 1;
             }
 
-            game->map[player->position[0] - 1][player->position[1]] = skin;
-            game->map[player->position[0]][player->position[1]] = ' ';
-            player->position[0] = player->position[0] - 1;
+            game->map[lin - 1][col] = skin;
+            game->map[lin][col] = ' ';
+            lin = lin - 1;
 
             if (flagWin == 1)
             {
@@ -797,23 +814,36 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
         }
         break;
     case 2: // right
-        if (game->map[player->position[0]][player->position[1] + 1] == ' ')
+        if (game->map[lin][col + 1] == ' ')
         {
-            game->map[player->position[0]][player->position[1] + 1] = skin;
-            game->map[player->position[0]][player->position[1]] = ' ';
+            game->map[lin][col + 1] = skin;
+            game->map[lin][col] = ' ';
 
-            player->position[1] = player->position[1] + 1;
+            col = col + 1;
         }
         break;
     case 3: // down
-        if (game->map[player->position[0] + 1][player->position[1]] == ' ')
+        if (game->map[lin + 1][col] == ' ')
         {
-            game->map[player->position[0] + 1][player->position[1]] = skin;
-            game->map[player->position[0]][player->position[1]] = ' ';
+            game->map[lin + 1][col] = skin;
+            game->map[lin][col] = ' ';
 
-            player->position[0] = player->position[0] + 1;
+            lin = lin + 1;
         }
         break;
+    }
+
+    if (player == NULL)
+    { // dynamic obstacle
+        
+        obstacle->position[0] = lin;
+        obstacle->position[1] = col;
+    }
+    else
+    {
+       
+        player->position[0] = lin;
+        player->position[1] = col;
     }
     // printf("\nPOSITION: after [%d][%d]\n", player->position[0], player->position[1]);
 }

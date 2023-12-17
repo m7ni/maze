@@ -396,6 +396,9 @@ void printmap(GAME game, WINDOW* wGame){
 			else if(game.map[i][j] == 'R') {
 				mvwprintw(wGame,i+1,j+1,"R");
 			}
+			else if(game.map[i][j] == 'O') {
+				mvwprintw(wGame,i+1,j+1,"O");
+			}
 		}
 	}
 }
