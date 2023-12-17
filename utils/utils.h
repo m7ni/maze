@@ -4,6 +4,8 @@
 #include <ncurses.h>
 #include <pthread.h>
 
+#define NCOL 40
+#define NLIN 16
 #define FIFO_ENGINE_ACP "FIFO_ENGINE_ACP"       // ALL Players -> ENGINE
 #define FIFO_GAMEUI "FIFO_GAMEUI_%d"            // ENGINE -> Single Player
 #define FIFO_PRIVATE_MSG "FIFO_PRIVATE_MSG_%d"  // Single Player -> Single Player
@@ -56,6 +58,7 @@ typedef struct {
     int time;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
     ROCK rocks[50];     //max 50
     DINAMICOBS obstacle[20];
+    int nObs;
     int minNplayers;    //dado pela VAR de ambiente NPLAYERS
     int timeDec;        //time decrement VAR de ambiente
     int start;

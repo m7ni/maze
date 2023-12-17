@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     TBDATA tbData;
     GAME game;
     int pipeBot[2], timeEnrolment;
-    pthread_t threadACPID, threadKBID, threadPlayersID, threadClockID,threadBotID;
+    pthread_t threadACPID, threadKBID, threadPlayersID, threadClockID, threadBotID;
     pthread_mutex_t mutexGame;
     int stop = 0;
 
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
         perror("Error creating threadPlayers\n");
         return -1;
     }
-    
+
     tbData.game = &game;
     tbData.stop = &stop;
     tbData.mutexGame = &mutexGame;
@@ -84,7 +84,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    
     pthread_join(threadACPID, NULL);
     pthread_join(threadClockID, NULL);
     pthread_join(threadKBID, NULL);
@@ -92,31 +91,30 @@ int main(int argc, char *argv[])
     pthread_join(threadBotID, NULL);
 }
 
-
-
 void *threadReadBot(void *data)
 {
-     printf("Inside threadBOT\n");
+    printf("Inside threadBOT\n");
     TBDATA *tbData = (TBDATA *)data;
     char buffer[BUFFER_SIZE];
-    char col[20],lin[20],duration[20];
+    char col[20], lin[20], duration[20];
     int bytes_read, i = 0;
     // printf("\npipebot %d\n", tbpipeBot[0]);
     // printf("\npid do bot %d\n", pid);
     // close(pipeBot[1]);
 
     pthread_mutex_lock(tbData->mutexGame);
-    for(int i= 0;i<50;i++){
-        tbData->game->rocks[i].skin='U';
+    for (int i = 0; i < 50; i++)
+    {
+        tbData->game->rocks[i].skin = 'U';
     }
     pthread_mutex_unlock(tbData->mutexGame);
 
     while (tbData->stop)
     {
-        
+
         // Read from the pipe
         bytes_read = read(tbData->game->pipeBot[0], buffer, 256);
-        
+
         if (bytes_read < 0)
         {
             perror("read");
@@ -125,40 +123,47 @@ void *threadReadBot(void *data)
         {
 
             buffer[bytes_read] = '\0'; // Null-terminate the received data
-            sscanf(buffer, "%s %s %s", col, lin,duration);
-    pthread_mutex_lock(tbData->mutexGame);
+            sscanf(buffer, "%s %s %s", col, lin, duration);
+            int colN = atoi(col);
+            int linN = atoi(lin);
+            int durationN = atoi(duration);
+            pthread_mutex_lock(tbData->mutexGame);
 
-            placeRock(col,lin,duration,tbData->game);
-        pthread_mutex_unlock(tbData->mutexGame);
+            placeRock(colN, linN, durationN, tbData->game);
+            pthread_mutex_unlock(tbData->mutexGame);
 
             // Print the received string
-            printf("Received: %s %s %s\n", lin,col,duration);
-
+            printf("Received: %s %s %s %d %d %d\n", lin, col, duration, linN, colN, durationN);
         }
     }
     printf("Outside threadBOT\n");
     pthread_exit(NULL);
-    
 }
 
-void placeRock(char col[], char lin[], char duration[],GAME *game){
+void placeRock(int col, int lin, int duration, GAME *game)
+{
     ROCK rock;
-    if(game->map[(int)*lin][(int)*col] == ' '){
-        rock.duration=(int)*duration;
-        rock.position[0]=(int)*lin;
-        rock.position[1]=(int)*col;
+
+    if (game->map[lin][col] == ' ')
+    {
+        rock.duration = duration;
+        rock.position[0] = lin;
+        rock.position[1] = col;
         rock.skin = 'R';
 
-        game->map[(int)*lin][(int)*col] = rock.skin; 
-        for(int i= 0;i<50;i++){
-            if(game->rocks[i].skin == 'U'){
+        game->map[lin][col] = rock.skin;
+        for (int i = 0; i < 50; i++)
+        {
+            if (game->rocks[i].skin == 'U')
+            {
                 game->rocks[i] = rock;
                 break;
             }
         }
-
-    }else{
-        printf("Space for Rock was occupied\n");
+    }
+    else
+    {
+        printf("Space for Rock was occupied [%c] %d %d\n", game->map[lin][col], lin, col);
     }
 }
 
@@ -167,7 +172,6 @@ void *threadClock(void *data)
     CLKDATA *clkData = (CLKDATA *)data;
     printf("Inside threadClock\n");
     int size = 0;
-    char pipeNameGamePlayer[30];
 
     while (clkData->stop)
     {
@@ -175,7 +179,32 @@ void *threadClock(void *data)
         pthread_mutex_lock(clkData->mutexGame);
         printf("Timeleft: %d\n", clkData->game->timeleft);
         if (clkData->game->timeleft > 0)
+        {
             clkData->game->timeleft--;
+
+            for (int i = 0; i < 50; i++)
+            {
+                if (clkData->game->rocks[i].skin != 'U')
+                {
+                    if (clkData->game->rocks[i].duration > 0)
+                    {
+                        clkData->game->rocks[i].duration--;
+                    }
+                    else
+                    {
+                        clkData->game->rocks[i].skin = 'U';
+                        clkData->game->map[clkData->game->rocks[i].position[0]][clkData->game->rocks[i].position[1]] = ' ';
+                        sendMap(clkData->game);
+                    }
+                }
+            }
+
+            for (int i = 0; i < clkData->game->nBots; i++)
+            {
+                movePlayer(clkData->game, NULL, &clkData->game->obstacle[i]);
+                sendMap(clkData->game);
+            }
+        }
 
         if (clkData->game->timeleft == 0 && clkData->game->level != 0)
         {
@@ -184,41 +213,49 @@ void *threadClock(void *data)
         }
         else if (clkData->game->timeleft == 0 && clkData->game->level == 0 || clkData->game->start == 1)
         {
-            
-            if(clkData->game->start != 1) {
+
+            if (clkData->game->start != 1)
+            {
                 printf("Time to enroll has passed\n");
                 passLevel(clkData->game);
             }
-                
-            for (int i = 0; i < clkData->game->nPlayers; i++)
-            {
-                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, clkData->game->players[i].pid);
-
-                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
-                if (fdWrGamePlayer == -1)
-                {
-                    perror("Error openning game fifo\n");
-                }
-
-                size = write(fdWrGamePlayer, clkData->game, sizeof(GAME));
-            }
-            for (int i = 0; i < clkData->game->nNonPlayers; i++)
-            {
-                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, clkData->game->nonPlayers[i].pid);
-
-                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
-                if (fdWrGamePlayer == -1)
-                {
-                    perror("Error openning game fifo\n");
-                }
-
-                size = write(fdWrGamePlayer, clkData->game, sizeof(GAME));
-            }
+            sendMap(clkData->game);
         }
         pthread_mutex_unlock(clkData->mutexGame);
     }
     printf("Outside threadClock\n");
     pthread_exit(NULL);
+}
+
+void sendMap(GAME *game)
+
+{
+    int size = 0;
+    char pipeNameGamePlayer[30];
+    for (int i = 0; i < game->nPlayers; i++)
+    {
+        sprintf(pipeNameGamePlayer, FIFO_GAMEUI, game->players[i].pid);
+
+        int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
+        if (fdWrGamePlayer == -1)
+        {
+            perror("Error openning game fifo\n");
+        }
+
+        size = write(fdWrGamePlayer, game, sizeof(GAME));
+    }
+    for (int i = 0; i < game->nNonPlayers; i++)
+    {
+        sprintf(pipeNameGamePlayer, FIFO_GAMEUI, game->nonPlayers[i].pid);
+
+        int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
+        if (fdWrGamePlayer == -1)
+        {
+            perror("Error openning game fifo\n");
+        }
+
+        size = write(fdWrGamePlayer, game, sizeof(GAME));
+    }
 }
 
 void *threadACP(void *data)
@@ -363,8 +400,8 @@ void getEnvVars(GAME *game, ACPDATA *acpData)
     if (p != NULL)
     {
         printf("\nVariable: DECREMENT = %s\n", p);
-        game->timeDec = (int)*p;
-        game->timeDec = 5;
+        game->timeDec = atoi(p);
+        // game->timeDec = 5;
     }
 }
 
@@ -381,7 +418,8 @@ void launchBot(GAME *game)
     int duration;
     char durationS[20];
 
-    switch (game->level) {
+    switch (game->level)
+    {
     case 1:
         duration = 10;
         break;
@@ -392,20 +430,21 @@ void launchBot(GAME *game)
         duration = 20;
         break;
     }
-    
-    for(int i = 0; i<game->level +1; i++){
+
+    for (int i = 0; i < game->level + 1; i++)
+    {
         BOT bot;
         int pidBot = fork();
         printf("\nfork result %d\n", pidBot);
-       
-        sprintf(coordS, "%d",coord);
-        sprintf(durationS, "%d",duration);   
 
-        printf("durationS [%s]\n",durationS);
-        printf("CoordS [%s]\n",coordS);
+        sprintf(coordS, "%d", coord);
+        sprintf(durationS, "%d", duration);
 
-        printf("duration [%d]\n",duration);
-        printf("Coord [%d]\n",coord);
+        printf("durationS [%s]\n", durationS);
+        printf("CoordS [%s]\n", coordS);
+
+        printf("duration [%d]\n", duration);
+        printf("Coord [%d]\n", coord);
 
         if (pidBot < 0)
         {
@@ -414,7 +453,7 @@ void launchBot(GAME *game)
         }
         if (pidBot == 0)
         {
-            printf("bot [%d] with pid %d\n",i,getpid());
+            printf("bot [%d] with pid %d\n", i, getpid());
             if (dup2(game->pipeBot[1], STDOUT_FILENO) == -1)
             {
                 perror("dup2");
@@ -422,7 +461,7 @@ void launchBot(GAME *game)
             }
             close(game->pipeBot[1]);
             close(game->pipeBot[0]);
-            int res = execl("bot/bot.exe", "bot", coordS , durationS, NULL);
+            int res = execl("bot/bot.exe", "bot", coordS, durationS, NULL);
             if (res != 0)
             {
                 perror("Failed Execl\n");
@@ -430,19 +469,17 @@ void launchBot(GAME *game)
         }
         else
         {
-            bot.pid=pidBot;
-            printf("PARENT bot [%d] with pid %d\n",i,bot.pid);
+            bot.pid = pidBot;
+            printf("PARENT bot [%d] with pid %d\n", i, bot.pid);
             bot.duration = coord;
             bot.interval = duration;
             game->bots[game->nBots++] = bot;
             coord = coord - 5;
-            duration=duration-5;
+            duration = duration - 5;
             printf("\nBack to the parent\n");
-        }       
-       
+        }
     }
 }
-
 
 void closeBot(GAME *game)
 {
@@ -450,9 +487,10 @@ void closeBot(GAME *game)
     union sigval value;
     value.sival_int = 2; // You can pass an integer value if needed
     printf("Close Bot\n");
-    for(int i =0 ; i < game->nBots;i++){
-         printf("Close Bot [%d][%d]\n",game->nBots, game->bots[i].pid);
-         if (sigqueue((pid_t)game->bots[i].pid, SIGINT, value) == 0)
+    for (int i = 0; i < game->nBots; i++)
+    {
+        printf("Close Bot [%d][%d]\n", game->nBots, game->bots[i].pid);
+        if (sigqueue((pid_t)game->bots[i].pid, SIGINT, value) == 0)
         {
             printf("Sent SIGINT signal to Bot with PID %d\n", game->bots[i].pid);
             wait(&game->bots[game->nBots].pid);
@@ -467,8 +505,6 @@ void closeBot(GAME *game)
             perror("sigqueue");
         }
     }
-
-   
 }
 
 void initGame(GAME *game)
@@ -477,6 +513,8 @@ void initGame(GAME *game)
     game->nPlayers = 0;
     game->nBots = 0;
     game->nNonPlayers = 0;
+    game->nObs = 0;
+
     // game->timeleft = 10;
 }
 
@@ -554,13 +592,28 @@ void *threadKBEngine(void *data)
             else if (strcmp(cmd, "bmov") == 0)
             {
                 pthread_mutex_lock(kbData->mutexGame);
-
+                if (kbData->game->nBots == 20)
+                {
+                    printf("Maximum number of obstacles allowed reached");
+                }
+                else
+                {
+                    insertDynamicObstacle(kbData->game);
+                }
                 pthread_mutex_unlock(kbData->mutexGame);
             }
             else if (strcmp(cmd, "rbm") == 0)
             {
                 pthread_mutex_lock(kbData->mutexGame);
 
+                if (kbData->game->nBots > 0)
+                {
+                    removeDynamicObstacle(kbData->game);
+                }
+                else
+                {
+                    printf("No obstacles left to remove");
+                }
                 pthread_mutex_unlock(kbData->mutexGame);
             }
             else if (strcmp(cmd, "begin") == 0)
@@ -594,6 +647,38 @@ void *threadKBEngine(void *data)
         }
     }
     pthread_exit(NULL);
+}
+
+void removeDynamicObstacle(GAME *game)
+{
+
+    for (int i = 0; i < game->nObs - 1; i++)
+    {
+        DINAMICOBS obs;
+        game->obstacle[i] = game->obstacle[i + 1];
+    }
+    game->nBots--;
+}
+
+void insertDynamicObstacle(GAME *game)
+{
+    DINAMICOBS obs;
+    obs.skin = 'O';
+    int x, y;
+    while (1)
+    {
+        srand(time(NULL));
+        x = rand() % NCOL;
+        y = rand() % NLIN;
+        if (game->map[x][y] == ' ')
+        {
+            game->map[x][y] = 'O';
+            obs.position[0] = x;
+            obs.position[1] = y;
+            game->obstacle[game->nObs++] = obs;
+            break;
+        }
+    }
 }
 
 void readFileMap(int level, GAME *game)
@@ -662,7 +747,8 @@ void readFileMap(int level, GAME *game)
     }
 }
 
-void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle) { // meter esta func bem
+void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
+{ // meter esta func bem
     int flagWin = 0;
     int move;
     char skin;
@@ -751,7 +837,8 @@ void *threadPlayers(void *data)
         perror("Error openning fifo engine game\n");
     }
     char pipeNameGamePlayer[30];
-    while (plData->stop) { // aqui tem de se meter == 0
+    while (plData->stop)
+    { // aqui tem de se meter == 0
         // read the player ENGINE FIFO GAME
         size = read(fdRdPlayerMoves, &player, sizeof(PLAYER));
         printf("\nReceived player: %s with move: %d\n", player.name, player.move);
@@ -778,7 +865,7 @@ void *threadPlayers(void *data)
         }
         plData->game->players[indice].move = player.move;
 
-        if (player.move == -2) 
+        if (player.move == -2)
         { // player sent a msg
             pthread_mutex_lock(plData->mutexGame);
             for (int i = 0; i < plData->game->nPlayers + 1; i++)
@@ -865,29 +952,7 @@ void *threadPlayers(void *data)
             // send to all players the new game -> passar function
 
             pthread_mutex_lock(plData->mutexGame);
-            for (int i = 0; i < plData->game->nPlayers; i++)
-            {
-                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->players[i].pid);
-
-                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
-                if (fdWrGamePlayer == -1)
-                {
-                    perror("Error openning game fifo\n");
-                }
-                size = write(fdWrGamePlayer, plData->game, sizeof(GAME));
-            }
-            for (int i = 0; i < plData->game->nNonPlayers; i++)
-            {
-                sprintf(pipeNameGamePlayer, FIFO_GAMEUI, plData->game->nonPlayers[i].pid);
-
-                int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
-                if (fdWrGamePlayer == -1)
-                {
-                    perror("Error openning game fifo\n");
-                }
-
-                size = write(fdWrGamePlayer, plData->game, sizeof(GAME));
-            }
+            sendMap(plData->game);
             pthread_mutex_unlock(plData->mutexGame);
         }
     }
@@ -932,7 +997,7 @@ void passLevel(GAME *game)
     placePlayers(game);
     closeBot(game);
     launchBot(game);
-   
+
     game->time = game->time - game->timeDec;
     game->timeleft = game->time;
 

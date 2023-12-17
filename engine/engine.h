@@ -85,8 +85,13 @@ void passLevel(GAME *game);
 
 void initGame(GAME *game);
 
-void placeRock(char col[], char lin[], char duration[],GAME *game);
+void placeRock(int col, int lin, int duration,GAME *game);
 
+void sendMap(GAME *game);
+
+void removeDynamicObstacle(GAME * game);
+
+void insertDynamicObstacle(GAME *game);
 /*
 ENROLLMENT - time to enroll
 NPLAYERS - min of players
