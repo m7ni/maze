@@ -132,7 +132,7 @@ void *threadReadBot(void *data)
         pthread_mutex_unlock(tbData->mutexGame);
 
             // Print the received string
-            printf("Received: %s %s %s\n", col,lin,duration);
+            printf("Received: %s %s %s\n", lin,col,duration);
 
         }
     }
@@ -158,7 +158,7 @@ void placeRock(char col[], char lin[], char duration[],GAME *game){
         }
 
     }else{
-        printf("Space for Rock was occupied");
+        printf("Space for Rock was occupied\n");
     }
 }
 
