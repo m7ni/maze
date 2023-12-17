@@ -27,11 +27,12 @@ int main(int argc, char * argv[]) {
       fprintf(stderr, "[ERROR] All args must be integers!\n");
       return 2;
    }
-   srand(time(NULL));
+
    sa.sa_flags = SA_SIGINFO;
    sa.sa_sigaction = termina;
    sigaction(SIGINT, &sa, NULL);
    while (RUNNING) {
+      srand(time(NULL));
       sleep(interval);
       x = rand() % NCOL;
       y = rand() % NLIN;

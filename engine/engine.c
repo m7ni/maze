@@ -1,4 +1,3 @@
-
 #include "engine.h"
 
 int main(int argc, char *argv[])
@@ -7,9 +6,10 @@ int main(int argc, char *argv[])
     KBDATA kbData;
     PLAYERSDATA plData;
     CLKDATA clkData;
+    TBDATA tbData;
     GAME game;
     int pipeBot[2], timeEnrolment;
-    pthread_t threadACPID, threadKBID, threadPlayersID, threadClockID;
+    pthread_t threadACPID, threadKBID, threadPlayersID, threadClockID,threadBotID;
     pthread_mutex_t mutexGame;
     int stop = 0;
 
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 
         return -1;
     }
-    printf("\nCreated thread Clock");
+    printf("Created thread Clock\n");
 
     createPipe(pipeBot, &game);
 
@@ -73,11 +73,93 @@ int main(int argc, char *argv[])
         perror("Error creating threadPlayers\n");
         return -1;
     }
+    
+    tbData.game = &game;
+    tbData.stop = &stop;
+    tbData.mutexGame = &mutexGame;
 
+    if (pthread_create(&threadBotID, NULL, &threadReadBot, &tbData))
+    {
+        perror("Error creating threadPlayers\n");
+        return -1;
+    }
+
+    
     pthread_join(threadACPID, NULL);
     pthread_join(threadClockID, NULL);
     pthread_join(threadKBID, NULL);
     pthread_join(threadPlayersID, NULL);
+    pthread_join(threadBotID, NULL);
+}
+
+
+
+void *threadReadBot(void *data)
+{
+     printf("Inside threadBOT\n");
+    TBDATA *tbData = (TBDATA *)data;
+    char buffer[BUFFER_SIZE];
+    char col[20],lin[20],duration[20];
+    int bytes_read, i = 0;
+    // printf("\npipebot %d\n", tbpipeBot[0]);
+    // printf("\npid do bot %d\n", pid);
+    // close(pipeBot[1]);
+
+    pthread_mutex_lock(tbData->mutexGame);
+    for(int i= 0;i<50;i++){
+        tbData->game->rocks[i].skin='U';
+    }
+    pthread_mutex_unlock(tbData->mutexGame);
+
+    while (tbData->stop)
+    {
+        
+        // Read from the pipe
+        bytes_read = read(tbData->game->pipeBot[0], buffer, 256);
+        
+        if (bytes_read < 0)
+        {
+            perror("read");
+        }
+        else
+        {
+
+            buffer[bytes_read] = '\0'; // Null-terminate the received data
+            sscanf(buffer, "%s %s %s", col, lin,duration);
+    pthread_mutex_lock(tbData->mutexGame);
+
+            placeRock(col,lin,duration,tbData->game);
+        pthread_mutex_unlock(tbData->mutexGame);
+
+            // Print the received string
+            printf("Received: %s %s %s\n", col,lin,duration);
+
+        }
+    }
+    printf("Outside threadBOT\n");
+    pthread_exit(NULL);
+    
+}
+
+void placeRock(char col[], char lin[], char duration[],GAME *game){
+    ROCK rock;
+    if(game->map[(int)*lin][(int)*col] == ' '){
+        rock.duration=(int)*duration;
+        rock.position[0]=(int)*lin;
+        rock.position[1]=(int)*col;
+        rock.skin = 'R';
+
+        game->map[(int)*lin][(int)*col] = rock.skin; 
+        for(int i= 0;i<50;i++){
+            if(game->rocks[i].skin == 'U'){
+                game->rocks[i] = rock;
+                break;
+            }
+        }
+
+    }else{
+        printf("Space for Rock was occupied");
+    }
 }
 
 void *threadClock(void *data)
@@ -91,7 +173,7 @@ void *threadClock(void *data)
     {
         sleep(1);
         pthread_mutex_lock(clkData->mutexGame);
-        printf("\nTimeleft: %d", clkData->game->timeleft);
+        printf("Timeleft: %d\n", clkData->game->timeleft);
         if (clkData->game->timeleft > 0)
             clkData->game->timeleft--;
 
@@ -282,6 +364,7 @@ void getEnvVars(GAME *game, ACPDATA *acpData)
     {
         printf("\nVariable: DECREMENT = %s\n", p);
         game->timeDec = (int)*p;
+        game->timeDec = 5;
     }
 }
 
@@ -291,87 +374,101 @@ void createPipe(int *pipeBot, GAME *game)
     game->pipeBot = pipeBot;
 }
 
-int launchBot(int *pipeBot, GAME *game)
+void launchBot(GAME *game)
 {
-    int pidBot = fork();
-    printf("\nfork result %d\n", pidBot);
+    int coord = 30;
+    char coordS[20];
+    int duration;
+    char durationS[20];
 
-    if (pidBot < 0)
-    {
-        perror("Error creating Bot (Failed Fork())");
-        return -1;
+    switch (game->level) {
+    case 1:
+        duration = 10;
+        break;
+    case 2:
+        duration = 15;
+        break;
+    case 3:
+        duration = 20;
+        break;
     }
-    if (pidBot == 0)
-    {
-        if (dup2(pipeBot[1], STDOUT_FILENO) == -1)
+    
+    for(int i = 0; i<game->level +1; i++){
+        BOT bot;
+        int pidBot = fork();
+        printf("\nfork result %d\n", pidBot);
+       
+        sprintf(coordS, "%d",coord);
+        sprintf(durationS, "%d",duration);   
+
+        printf("durationS [%s]\n",durationS);
+        printf("CoordS [%s]\n",coordS);
+
+        printf("duration [%d]\n",duration);
+        printf("Coord [%d]\n",coord);
+
+        if (pidBot < 0)
         {
-            perror("dup2");
-            exit(EXIT_FAILURE);
+            perror("Error creating Bot (Failed Fork())\n");
+            continue;
         }
-        close(pipeBot[1]);
-        close(pipeBot[0]);
-
-        int res = execl("bot/bot.exe", "bot", "2", "2", NULL);
-        if (res != 0)
+        if (pidBot == 0)
         {
-            perror("Failed Execl ");
-        }
-    }
-    else
-    {
-        printf("\nBack to the parent\n");
-        game->nBots++;
-        return pidBot;
-    }
-}
-
-void readBot(int *pipeBot, int pid)
-{
-    char buffer[BUFFER_SIZE];
-    int bytes_read, i = 0;
-    printf("\npipebot %d\n", pipeBot[0]);
-    printf("\npid do bot %d\n", pid);
-    close(pipeBot[1]);
-    while (i < 3)
-    {
-        // Read from the pipe
-        bytes_read = read(pipeBot[0], buffer, 256);
-        if (bytes_read < 0)
-        {
-            perror("read");
+            printf("bot [%d] with pid %d\n",i,getpid());
+            if (dup2(game->pipeBot[1], STDOUT_FILENO) == -1)
+            {
+                perror("dup2");
+                exit(EXIT_FAILURE);
+            }
+            close(game->pipeBot[1]);
+            close(game->pipeBot[0]);
+            int res = execl("bot/bot.exe", "bot", coordS , durationS, NULL);
+            if (res != 0)
+            {
+                perror("Failed Execl\n");
+            }
         }
         else
         {
-            buffer[bytes_read] = '\0'; // Null-terminate the received data
-
-            // Print the received string
-            printf("Received: %s\n", buffer);
-        }
-        i++;
+            bot.pid=pidBot;
+            printf("PARENT bot [%d] with pid %d\n",i,bot.pid);
+            bot.duration = coord;
+            bot.interval = duration;
+            game->bots[game->nBots++] = bot;
+            coord = coord - 5;
+            duration=duration-5;
+            printf("\nBack to the parent\n");
+        }       
+       
     }
 }
 
-void closeBot(int pid, GAME *game)
+
+void closeBot(GAME *game)
 {
     int status = 0;
     union sigval value;
     value.sival_int = 2; // You can pass an integer value if needed
-
-    if (sigqueue((pid_t)pid, SIGINT, value) == 0)
-    {
-
-        printf("Sent SIGINT signal to Bot with PID %d\n", pid);
-        wait(&pid);
-        if (WIFEXITED(pid))
+    printf("Close Bot\n");
+    for(int i =0 ; i < game->nBots;i++){
+         printf("Close Bot [%d][%d]\n",game->nBots, game->bots[i].pid);
+         if (sigqueue((pid_t)game->bots[i].pid, SIGINT, value) == 0)
         {
-            printf("Bot with PID [%d] terminated (%d)\n", pid, status);
-            game->nBots--;
+            printf("Sent SIGINT signal to Bot with PID %d\n", game->bots[i].pid);
+            wait(&game->bots[game->nBots].pid);
+            if (WIFEXITED(game->bots[i].pid))
+            {
+                printf("Bot with PID [%d] terminated (%d)\n", game->bots[i].pid, status);
+                game->nBots--;
+            }
+        }
+        else
+        {
+            perror("sigqueue");
         }
     }
-    else
-    {
-        perror("sigqueue");
-    }
+
+   
 }
 
 void initGame(GAME *game)
@@ -823,17 +920,23 @@ void placePlayers(GAME *game)
 void passLevel(GAME *game)
 {
     game->start = 1;
-    printf("\nGame level: %d", game->level);
+    printf("\nGame level: %d\n", game->level);
     if (game->level == 0)
     {
-        printf("\nAntes game->time: %d", game->time);
-        game->time = 100; // time of level 1
-        printf("\nDepois game->time: %d", game->time);
+        printf("\nAntes game->time: %d\n", game->time);
+        game->time = 105; // time of level 1
+        printf("\nDepois game->time: %d\n", game->time);
     }
     game->level += 1;
     readFileMap(game->level, game);
     placePlayers(game);
-    printf("Time of the level: %d", game->time);
+    closeBot(game);
+    launchBot(game);
+   
     game->time = game->time - game->timeDec;
     game->timeleft = game->time;
+
+    printf("Time of the level: %d\n", game->time);
+    printf("Timedec: %d\n", game->timeDec);
+    printf("TimeLeft: %d\n", game->timeleft);
 }

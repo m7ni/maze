@@ -14,7 +14,6 @@ typedef struct {
     int pid;
     int interval;
     int duration;
-
 } BOT;
 
 typedef struct {
@@ -54,7 +53,7 @@ typedef struct {
     int nNonPlayers;
     BOT bots[10];
     int nBots;
-    float time;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
+    int time;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
     ROCK rocks[50];     //max 50
     DINAMICOBS obstacle[20];
     int minNplayers;    //dado pela VAR de ambiente NPLAYERS

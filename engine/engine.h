@@ -32,6 +32,12 @@ typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
     int *stop;
+} TBDATA;
+
+typedef struct {
+    GAME *game;
+    pthread_mutex_t *mutexGame;
+    int *stop;
     int timeEnrolment;
 } ACPDATA;
 
@@ -51,9 +57,9 @@ typedef struct {
 
 void createPipe(int *pipeBot, GAME *game);
 
-int launchBot(int *pipeBot, GAME *game);
+void launchBot(GAME *game);
 
-void closeBot(int pid, GAME *game);
+void closeBot(GAME *game);
 
 void *threadACP(void *data);
 
@@ -63,7 +69,7 @@ void *threadPlayers(void *data);
 
 void *threadClock(void *data);
 
-void readBot(int *pipeBot, int pid);
+void *threadReadBot(void *data);
 
 void readFileMap(int level, GAME *game);
 
@@ -78,6 +84,8 @@ void placePlayers(GAME *game);
 void passLevel(GAME *game);
 
 void initGame(GAME *game);
+
+void placeRock(char col[], char lin[], char duration[],GAME *game);
 
 /*
 ENROLLMENT - time to enroll

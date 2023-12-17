@@ -393,6 +393,9 @@ void printmap(GAME game, WINDOW* wGame){
 			else if(game.map[i][j] == '4') {
 				mvwprintw(wGame,i+1,j+1,"4");
 			}
+			else if(game.map[i][j] == 'R') {
+				mvwprintw(wGame,i+1,j+1,"R");
+			}
 		}
 	}
 }
