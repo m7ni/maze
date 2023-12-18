@@ -790,7 +790,7 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
     case 1: // up
         if (game->map[lin - 1][col] == ' ')
         {
-            if (lin - 1 == 0)
+            if (lin - 1 == 0 && player != NULL)
             {
                 flagWin = 1;
             }
@@ -802,7 +802,6 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
             if (flagWin == 1)
             {
                 // call function to pass the level and initiate the game again
-                flagWin = 0;
                 passLevel(game);
             }
         }
@@ -833,12 +832,12 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
         obstacle->position[0] = lin;
         obstacle->position[1] = col;
     }
-    else
+    else if(player != NULL && flagWin == 0)
     {
-       
         player->position[0] = lin;
         player->position[1] = col;
     }
+    flagWin = 0;
     // printf("\nPOSITION: after [%d][%d]\n", player->position[0], player->position[1]);
 }
 

@@ -72,9 +72,10 @@ int main(int argc, char *argv[]) {
 	refresh(); 
 
 	wGame= newwin(18, 42, 1, 1);  
-	wComands =  newwin(5, 42, 30, 1);  
-	wGeneral = newwin(6, 42, 24, 1);   
 	wInfo = newwin(6, 42, 19, 1); 
+	wGeneral = newwin(6, 42, 25, 1);   
+	wComands =  newwin(5, 42, 31, 1);  
+	
 
 	box(wGame,0,0);
 	box(wComands,0,0);
@@ -303,13 +304,13 @@ void *threadPlay(void *data) {
 }
 
 
-void readMap(int fdRdEngine,WINDOW * window, WINDOW* wInfo){
+void readMap(int fdRdEngine,WINDOW * wGame, WINDOW* wInfo){
 	GAME game;
 	int size = 0;
 
 	size = read (fdRdEngine, &game, sizeof(GAME));
 	
-	printmap(game, window, wInfo);
+	printmap(game, wGame, wInfo);
 
 	//change the window
 	wrefresh(window);
@@ -357,7 +358,7 @@ void *threadRecMessages(void *data) {
 		wrefresh(recMSGData->window);
 		refresh();
 	}
-	close(fdRdPlayerMSG);//asd
+	close(fdRdPlayerMSG);
 	unlink(pipeNamePrivMSG);
 	
 	//printf("Outside threadRecMessages\n");
