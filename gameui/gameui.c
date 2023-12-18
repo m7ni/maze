@@ -357,7 +357,7 @@ void *threadRecMessages(void *data) {
 		wrefresh(recMSGData->window);
 		refresh();
 	}
-	close(fdRdPlayerMSG);
+	close(fdRdPlayerMSG);//asd
 	unlink(pipeNamePrivMSG);
 	
 	//printf("Outside threadRecMessages\n");
