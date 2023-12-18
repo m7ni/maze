@@ -72,9 +72,9 @@ int main(int argc, char *argv[]) {
 	refresh(); 
 
 	wGame= newwin(18, 42, 1, 1);  
-	wComands = newwin(4, 42, 19, 1);   
+	wComands =  newwin(5, 42, 30, 1);  
 	wGeneral = newwin(6, 42, 24, 1);   
-	wInfo = newwin(5, 42, 30, 1);   
+	wInfo = newwin(6, 42, 19, 1); 
 
 	box(wGame,0,0);
 	box(wComands,0,0);
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
 		
 		GAME game;
 
-		readMap(fdRdEngine,wGame);
+		readMap(fdRdEngine,wGame,wInfo);
 
 		if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
 			perror("Error creating threadPlay\n");
@@ -124,13 +124,14 @@ int main(int argc, char *argv[]) {
 		}
 		//printf("Created threadRecMessages\n");
 	} else {
-		readMap(fdRdEngine,wGame);
+		readMap(fdRdEngine,wGame,wInfo);
 	}
 	
 
 	//thread rec game		
 	recGameData.stop = &stop;
 	recGameData.window = wGame;
+	recGameData.wInfo = wInfo;
 	recGameData.fdRdEngine = fdRdEngine;
 
 	
@@ -153,7 +154,9 @@ void resizeHandler(int sig) { //compor nesta função
 int keyboardCmdGameUI(PLAYER *player, WINDOW *wComands) {
     char str1[10], str2[30], str3[100];
     char cmd[200], msg[200];
+			werase(wComands);
 
+	wrefresh(wComands);
 	wprintw(wComands,"\nCommand: ");
 	fflush(stdout);
 	wscanw(wComands," %200[^\n]", cmd);
@@ -168,11 +171,9 @@ int keyboardCmdGameUI(PLAYER *player, WINDOW *wComands) {
 	} else {
 		if(strcmp(cmd, "players") == 0) {
 			strcpy(player->command, cmd);
-			//wclear(wComands);
 			return 1;
 		}else if(strcmp(cmd, "exit") == 0) {
 			strcpy(player->command, cmd);
-			//wclear(wComands);
 			return -1;
 		} else {
 			return 0;
@@ -302,16 +303,17 @@ void *threadPlay(void *data) {
 }
 
 
-void readMap(int fdRdEngine,WINDOW * window){
+void readMap(int fdRdEngine,WINDOW * window, WINDOW* wInfo){
 	GAME game;
 	int size = 0;
 
 	size = read (fdRdEngine, &game, sizeof(GAME));
 	
-	printmap(game, window);
+	printmap(game, window, wInfo);
 
 	//change the window
 	wrefresh(window);
+	wrefresh(wInfo);
 }
 
 void *threadRecGame(void *data) {
@@ -320,7 +322,7 @@ void *threadRecGame(void *data) {
 	int size = 0;
 	while(recGData->stop) {
 		//read do jogo do engine	GAMEUI FIFO PID meu
-		readMap(recGData->fdRdEngine,recGData->window);
+		readMap(recGData->fdRdEngine,recGData->window,recGData->wInfo);
 	}
 	//printf("Outside threadRecGame\n");
 	pthread_exit(NULL);
@@ -348,11 +350,11 @@ void *threadRecMessages(void *data) {
 	while(recMSGData->stop) {
 		//read from pipe PRIVATE MSG PID
 		size = read (fdRdPlayerMSG, &msg, sizeof(MESSAGE));
-
 		//show player the msg from the other player
-		mvprintw(25, 2, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
+		 mvwprintw(recMSGData->window,1,1, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
+		// mvprintw(25, 2, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
 		//wprintw(recMSGData->window,"Player %s sent you:\n%s", msg.namePlayerSentMessage, msg.msg);
-
+		wrefresh(recMSGData->window);
 		refresh();
 	}
 	close(fdRdPlayerMSG);
@@ -363,7 +365,7 @@ void *threadRecMessages(void *data) {
 
 }
 
-void printmap(GAME game, WINDOW* wGame){
+void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo){
 
 	init_pair(1, COLOR_YELLOW, COLOR_BLUE);
 	init_pair(2, COLOR_YELLOW, COLOR_RED);
@@ -396,9 +398,22 @@ void printmap(GAME game, WINDOW* wGame){
 			else if(game.map[i][j] == 'R') {
 				mvwprintw(wGame,i+1,j+1,"R");
 			}
-			else if(game.map[i][j] == 'O') {
-				mvwprintw(wGame,i+1,j+1,"O");
+			else if(game.map[i][j] == 'W') {
+				mvwprintw(wGame,i+1,j+1,"W");
 			}
 		}
 	}
+	mvwprintw(wInfo,1,1,"Moving Obstacle: %d",game.nObs);
+	mvwprintw(wInfo,2,1,"Rocks: %d",game.nRocks);
+	mvwprintw(wInfo, 3, 1, "Players: ");
+	for(int i= 0;i<game.nPlayers;i++){
+		//mvwprintw(wInfo,3+i,1,"%s",game.players[i].name);
+		 wprintw(wInfo, "%s", game.players[i].name);
+
+        // Add a comma and space if there are more players
+        if (i < game.nPlayers - 1) {
+            wprintw(wInfo, ", ");
+        }
+	}
+
 }

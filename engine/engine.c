@@ -150,7 +150,7 @@ void placeRock(int col, int lin, int duration, GAME *game)
         rock.position[0] = lin;
         rock.position[1] = col;
         rock.skin = 'R';
-
+        game->nRocks++;
         game->map[lin][col] = rock.skin;
         for (int i = 0; i < 50; i++)
         {
@@ -194,6 +194,7 @@ void *threadClock(void *data)
                     {
                         clkData->game->rocks[i].skin = 'U';
                         clkData->game->map[clkData->game->rocks[i].position[0]][clkData->game->rocks[i].position[1]] = ' ';
+                        clkData->game->nRocks--;
                         sendMap(clkData->game);
                     }
                 }
@@ -520,6 +521,7 @@ void initGame(GAME *game)
     game->nBots = 0;
     game->nNonPlayers = 0;
     game->nObs = 0;
+    game->nRocks = 0;
     game->start = 0;
 
     // game->timeleft = 10;
@@ -538,7 +540,7 @@ void *threadKBEngine(void *data)
         fgets(cmd, sizeof(cmd), stdin);
         printf("\n");
 
-        if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0)
+        if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0) //POR IMPLEMENTAR
         {
             pthread_mutex_lock(kbData->mutexGame);
             for (int i = 0; i < kbData->game->nPlayers; i++)
@@ -568,7 +570,7 @@ void *threadKBEngine(void *data)
         else
         {
             cmd[strlen(cmd) - 1] = '\0';
-            if (strcmp(cmd, "users") == 0)
+            if (strcmp(cmd, "users") == 0) //FUNCIONA
             {
                 pthread_mutex_lock(kbData->mutexGame);
                 printf("\nPlayers:\n");
@@ -580,7 +582,7 @@ void *threadKBEngine(void *data)
 
                 pthread_mutex_unlock(kbData->mutexGame);
             }
-            else if (strcmp(cmd, "bots") == 0)
+            else if (strcmp(cmd, "bots") == 0) //FUNCIONA
             {
                 pthread_mutex_lock(kbData->mutexGame);
                 if (kbData->game->nBots == 0)
@@ -596,7 +598,7 @@ void *threadKBEngine(void *data)
                 }
                 pthread_mutex_unlock(kbData->mutexGame);
             }
-            else if (strcmp(cmd, "bmov") == 0)
+            else if (strcmp(cmd, "bmov") == 0) //FUNCIONA
             {
                 pthread_mutex_lock(kbData->mutexGame);
                 if (kbData->game->nBots == 20)
@@ -609,7 +611,7 @@ void *threadKBEngine(void *data)
                 }
                 pthread_mutex_unlock(kbData->mutexGame);
             }
-            else if (strcmp(cmd, "rbm") == 0)
+            else if (strcmp(cmd, "rbm") == 0) //NAO FUNCIONA
             {
                 pthread_mutex_lock(kbData->mutexGame);
 
@@ -623,24 +625,16 @@ void *threadKBEngine(void *data)
                 }
                 pthread_mutex_unlock(kbData->mutexGame);
             }
-            else if (strcmp(cmd, "begin") == 0)
+            else if (strcmp(cmd, "begin") == 0) //FUNCIONA
             { // init the game automatically even if there is no min number of Players
+
+
                 pthread_mutex_lock(kbData->mutexGame);
                 kbData->game->start = 1;
                 passLevel(kbData->game);
                 pthread_mutex_unlock(kbData->mutexGame);
             }
-
-            /*
-            else if(strcmp(cmd, "bot") == 0) {
-                printf("\nVALID");
-                kbData->game->bots[0].pid = launchBot(kbData->game->pipeBot, kbData->game);
-                readBot(kbData->game->pipeBot, kbData->game->bots[0].pid);
-                closeBot(kbData->game->bots[0].pid,  kbData->game);
-
-            }
-            */
-            else if (strcmp(cmd, "exit") == 0)
+            else if (strcmp(cmd, "exit") == 0) //POR IMPLEMENTAR
             {
                 pthread_mutex_lock(kbData->mutexGame);
                 // avisar os bots com um sinal;
@@ -675,7 +669,7 @@ void removeDynamicObstacle(GAME *game)
 void insertDynamicObstacle(GAME *game)
 {
     DINAMICOBS obs;
-    obs.skin = 'O';
+    obs.skin = 'W';
     int x, y;
     while (1)
     {

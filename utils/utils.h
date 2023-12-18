@@ -57,6 +57,7 @@ typedef struct {
     int nBots;
     int time;     //inicia com VAR de ambiente DURACAO e a cada nivel passa ser DURACAO-DECREMENTO (outra VAR ambiente)
     ROCK rocks[50];     //max 50
+    int nRocks;
     DINAMICOBS obstacle[20];
     int nObs;
     int minNplayers;    //dado pela VAR de ambiente NPLAYERS
