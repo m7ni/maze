@@ -43,6 +43,7 @@ typedef struct {
     char message[100];
     int accepted;
     int pid;
+    int score;
     NAMEPLAYERS players[5];
 } PLAYER;
 

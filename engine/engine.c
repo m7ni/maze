@@ -802,6 +802,7 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
             if (flagWin == 1)
             {
                 // call function to pass the level and initiate the game again
+                player->score++;
                 passLevel(game);
             }
         }
@@ -1007,13 +1008,13 @@ void placePlayers(GAME *game)
 
 void passLevel(GAME *game)
 {
+    if(game->level == 3) {
+        //end engine
+    }
     game->start = 1;
     printf("\nGame level: %d\n", game->level);
-    if (game->level == 0)
-    {
-        printf("\nAntes game->time: %d\n", game->time);
+    if (game->level == 0) {
         game->time = 105; // time of level 1
-        printf("\nDepois game->time: %d\n", game->time);
     }
     game->level += 1;
     readFileMap(game->level, game);

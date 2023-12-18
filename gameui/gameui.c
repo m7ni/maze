@@ -72,9 +72,9 @@ int main(int argc, char *argv[]) {
 	refresh(); 
 
 	wGame= newwin(18, 42, 1, 1);  
-	wInfo = newwin(6, 42, 19, 1); 
-	wGeneral = newwin(6, 42, 25, 1);   
-	wComands =  newwin(5, 42, 31, 1);  
+	wInfo = newwin(7, 42, 19, 1); 
+	wGeneral = newwin(6, 42, 26, 1);   
+	wComands =  newwin(5, 42, 32, 1);  
 	
 
 	box(wGame,0,0);
@@ -155,10 +155,12 @@ void resizeHandler(int sig) { //compor nesta função
 int keyboardCmdGameUI(PLAYER *player, WINDOW *wComands) {
     char str1[10], str2[30], str3[100];
     char cmd[200], msg[200];
-			werase(wComands);
+	werase(wComands);
+	box(wComands,0,0);
 
 	wrefresh(wComands);
-	wprintw(wComands,"\nCommand: ");
+	mvwprintw(wComands,1,1, "Command: ");
+
 	fflush(stdout);
 	wscanw(wComands," %200[^\n]", cmd);
 	
@@ -248,7 +250,6 @@ void *threadPlay(void *data) {
 				size = write (plData->fd, plData->player, sizeof(PLAYER));
 
 				MESSAGE msg;
-				char xpto[100];
 				//mvprintw(1,1,"Estou a escuta neste pipe: %s", pipeNamePIDPlayer);
 				refresh();
 				int fdRdEngPIDPlayer = open(pipeNamePIDPlayer, O_RDONLY);
@@ -303,7 +304,6 @@ void *threadPlay(void *data) {
 	pthread_exit(NULL);
 }
 
-
 void readMap(int fdRdEngine,WINDOW * wGame, WINDOW* wInfo){
 	GAME game;
 	int size = 0;
@@ -313,7 +313,7 @@ void readMap(int fdRdEngine,WINDOW * wGame, WINDOW* wInfo){
 	printmap(game, wGame, wInfo);
 
 	//change the window
-	wrefresh(window);
+	wrefresh(wGame);
 	wrefresh(wInfo);
 }
 
@@ -322,6 +322,9 @@ void *threadRecGame(void *data) {
 	//printf("Inside threadRecGame\n");
 	int size = 0;
 	while(recGData->stop) {
+		wrefresh(recGData->window);
+		box(recGData->window,0,0);
+
 		//read do jogo do engine	GAMEUI FIFO PID meu
 		readMap(recGData->fdRdEngine,recGData->window,recGData->wInfo);
 	}
@@ -352,7 +355,7 @@ void *threadRecMessages(void *data) {
 		//read from pipe PRIVATE MSG PID
 		size = read (fdRdPlayerMSG, &msg, sizeof(MESSAGE));
 		//show player the msg from the other player
-		 mvwprintw(recMSGData->window,1,1, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
+		mvwprintw(recMSGData->window,1,1, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
 		// mvprintw(25, 2, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
 		//wprintw(recMSGData->window,"Player %s sent you:\n%s", msg.namePlayerSentMessage, msg.msg);
 		wrefresh(recMSGData->window);
@@ -404,9 +407,11 @@ void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo){
 			}
 		}
 	}
+	
 	mvwprintw(wInfo,1,1,"Moving Obstacle: %d",game.nObs);
 	mvwprintw(wInfo,2,1,"Rocks: %d",game.nRocks);
 	mvwprintw(wInfo, 3, 1, "Players: ");
+	
 	for(int i= 0;i<game.nPlayers;i++){
 		//mvwprintw(wInfo,3+i,1,"%s",game.players[i].name);
 		 wprintw(wInfo, "%s", game.players[i].name);
@@ -417,4 +422,6 @@ void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo){
         }
 	}
 
+	mvwprintw(wInfo, 4, 1, "Time: %d", game.timeleft);
+	mvwprintw(wInfo, 5, 1, "Score: "/*, game.players[].score*/);
 }
