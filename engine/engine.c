@@ -228,9 +228,7 @@ void *threadClock(void *data)
     pthread_exit(NULL);
 }
 
-void sendMap(GAME *game)
-
-{
+void sendMap(GAME *game) {
     int size = 0;
     char pipeNameGamePlayer[30];
     for (int i = 0; i < game->nPlayers; i++)
@@ -327,6 +325,7 @@ void *threadACP(void *data)
                     player.skin = '4';
                     break;
                 }
+                player.score = 0;
                 acpData->game->players[acpData->game->nPlayers] = player;
                 acpData->game->nPlayers++;
 
@@ -1010,6 +1009,7 @@ void passLevel(GAME *game)
 {
     if(game->level == 3) {
         //end engine
+        return;
     }
     game->start = 1;
     printf("\nGame level: %d\n", game->level);

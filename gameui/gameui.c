@@ -333,11 +333,11 @@ void *threadRecGame(void *data) {
 }
 
 void *threadRecMessages(void *data) {
-	RECMSGDATA *recMSGData = (RECMSGDATA *) data;
+	RECMSGDATA *recMSGData = (RECMSGDATA *) data; 
 	MESSAGE msg;
 	char pipeNamePrivMSG[30];
 	int size = 0;
-	//printf("Inside threadRecMessages\n");
+	//printf("Inside threadRecMessages\n"); 123
 	//mkfifo PRIVATE MSG PID
 	sprintf(pipeNamePrivMSG, FIFO_PRIVATE_MSG, getpid());
 
@@ -355,9 +355,13 @@ void *threadRecMessages(void *data) {
 		//read from pipe PRIVATE MSG PID
 		size = read (fdRdPlayerMSG, &msg, sizeof(MESSAGE));
 		//show player the msg from the other player
+		werase(recMSGData->window);
+		box(recMSGData->window,0,0);
+
+		wrefresh(recMSGData->window);
 		mvwprintw(recMSGData->window,1,1, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
-		// mvprintw(25, 2, "Player %s sent you: %s", msg.namePlayerSentMessage, msg.msg);
-		//wprintw(recMSGData->window,"Player %s sent you:\n%s", msg.namePlayerSentMessage, msg.msg);
+
+
 		wrefresh(recMSGData->window);
 		refresh();
 	}
@@ -423,5 +427,12 @@ void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo){
 	}
 
 	mvwprintw(wInfo, 4, 1, "Time: %d", game.timeleft);
-	mvwprintw(wInfo, 5, 1, "Score: "/*, game.players[].score*/);
+
+	for(int i= 0;i<game.nPlayers;i++){
+		if(game.players[i].pid == getpid()) {
+			mvwprintw(wInfo, 5, 1, "Score: %d", game.players[i].score);
+			break;
+		}		
+	}
+	
 }
