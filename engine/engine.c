@@ -504,7 +504,7 @@ void closeBot(GAME *game)
     int status = 0;
     union sigval value;
     value.sival_int = 2; // You can pass an integer value if needed
-    printf("Close Bot\n");
+    //printf("Close Bot\n");
     for (int i = 0; i < game->nBots; i++)
     {
         printf("Close Bot [%d][%d]\n", game->nBots, game->bots[i].pid);

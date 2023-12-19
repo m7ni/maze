@@ -382,8 +382,9 @@ void *threadRecMessages(void *data) {
 		wrefresh(recMSGData->window);
 		refresh();
 	}
-	
+	mvwprintw(recMSGData->window,1,1, "ANTESSSS");
 	unlink(pipeNamePrivMSG);
+	mvwprintw(recMSGData->window,2,1, "DEPOIIS");
 	close(fdRdPlayerMSG);
 	//printf("Outside threadRecMessages\n");
 	pthread_exit(NULL);
