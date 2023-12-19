@@ -70,7 +70,7 @@ typedef struct {
 
 typedef struct {
     GAME game;
-    int *stop;
+    int stop;
     WINDOW *window;
 } RECMSGDATA;
 

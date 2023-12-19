@@ -1,9 +1,9 @@
 #include "gameui.h"
 
-
+int stop;
 
 int main(int argc, char *argv[]) {
-    int lin, col, color, stop = 0;
+    int lin, col, color;
 	char pipeName[50];
     WINDOW *wGame, *wComands, *wGeneral, *wInfo;
     
@@ -12,12 +12,12 @@ int main(int argc, char *argv[]) {
 	RECGAMEDATA recGameData;
 	RECMSGDATA recMSGData;
 	pthread_t threadPlayID, threadRecGameID, threadRecMSGID;
-    
+    stop = 0;
     if(argc != 2) {
         printf("\n[ERROR] Invalid number of arguments -> Sintax: <./gameui NAME>\n");
         exit(1);
     }
-	
+
     strcpy(player.name, argv[1]);
 
 	int fdWrInitEngine = open(FIFO_ENGINE_ACP, O_WRONLY);   //Abrir o fifo em modo de escrita bloqueante
@@ -50,10 +50,16 @@ int main(int argc, char *argv[]) {
     //receive response from engine to see if the player can enter the game
 	size = read (fdRdEngine, &player, sizeof(player));
 
+	struct sigaction sa;
+    sa.sa_sigaction = handlerSignalGameUI;
+    sa.sa_flags = SA_SIGINFO;
+
+    sigaction(SIGUSR1, &sa, NULL);
+
 	if(player.accepted == 0) {	//cannot play because there are already someone with that name
 		printf("There are already someone with your name or the time to enter the game ended\n"); 
-		//unlink(pipeName);
-		//close(fdRdEngine);
+		unlink(pipeNameRecEngine);
+		close(fdRdEngine);
 		return -1;
 	} 
 
@@ -102,7 +108,7 @@ int main(int argc, char *argv[]) {
 		//printf("Normal player\n"); 
 
 		playData.player = &player;
-		playData.stop = &stop;
+		playData.stop = stop;
 		playData.window = wComands;
 		int fdWrEngine = open(FIFO_ENGINE_GAME, O_WRONLY);
 		playData.fd = fdWrEngine;
@@ -117,7 +123,7 @@ int main(int argc, char *argv[]) {
 		}
 		//printf("Created threadPlay\n");
 		recMSGData.window = wGeneral;
-		recMSGData.stop = &stop;
+		recMSGData.stop = stop;
 
 		if(pthread_create(&threadRecMSGID, NULL, &threadRecMessages, &recMSGData)) {
 			perror("Error creating threadRecGame\n");
@@ -130,7 +136,7 @@ int main(int argc, char *argv[]) {
 	
 
 	//thread rec game		
-	recGameData.stop = &stop;
+	recGameData.stop = stop;
 	recGameData.window = wGame;
 	recGameData.wInfo = wInfo;
 	recGameData.fdRdEngine = fdRdEngine;
@@ -144,6 +150,25 @@ int main(int argc, char *argv[]) {
 	pthread_join(threadRecGameID, NULL);
 	pthread_join(threadRecMSGID, NULL);
 	pthread_join(threadPlayID, NULL);
+
+	unlink(pipeNameRecEngine);
+	close(fdRdEngine);
+
+	werase(wGame);
+	werase(wInfo);
+	werase(wGeneral);
+	werase(wComands);
+
+	wclear(wGame);
+	wclear(wInfo);
+	wclear(wGeneral);
+	wclear(wComands);
+
+	delwin(wGame);
+	delwin(wInfo);
+	delwin(wGeneral);
+	delwin(wComands);
+
    	endwin();
    	return 0;
 }
@@ -193,13 +218,6 @@ void *threadPlay(void *data) {
 
 	p = NULL;
 
-/*
-	int fdWrEngine = open(FIFO_ENGINE_GAME, O_RDWR);
-    if(fdWrEngine == -1) {
-        perror("Error openning engine game fifo\n"); 
-    }
-*/
-	//mkfifo to receive the PID of player from the engine
 	char pipeNamePIDPlayer[30];
 
 	sprintf(pipeNamePIDPlayer, FIFO_PID_MSG, getpid());
@@ -210,11 +228,11 @@ void *threadPlay(void *data) {
 
 	keypad(plData->window, TRUE);
 	
-    while (plData->stop) {
+    while (stop == 0) {
 		wmove(plData->window, 1, 1);
 		size = 0;
 		ret = 0;
-       	ch = wgetch(plData->window);  // MUITO importante: o input é feito sobre a janela em questão
+       	ch = wgetch(plData->window);  //fica aqui preso
        	switch (ch) {
        	case KEY_UP:
         	p = "up";
@@ -260,34 +278,31 @@ void *threadPlay(void *data) {
 				size = read(fdRdEngPIDPlayer, &msg, sizeof(msg));
 				close(fdRdEngPIDPlayer);
 				if (size > 0){
-				//mvprintw(2,1,"Recebi este nome de pipe %s, e este size %d" ,msg.pipeName,size);
+					//mvprintw(2,1,"Recebi este nome de pipe %s, e este size %d" ,msg.pipeName,size);
 
-				refresh();
-				if(strcmp(msg.pipeName, "error") == 0)
-					break;
+					refresh();
+					if(strcmp(msg.pipeName, "error") == 0)
+						break;
 
-				
-				strcpy(msg.msg, plData->player->message);
-				strcpy(msg.namePlayerSentMessage, plData->player->name);
-				//write to player pipe name
-				int fdWrPlayer = open(msg.pipeName, O_RDWR);
-				if(fdWrPlayer == -1) {
-					perror("Error openning private message fifo\n"); 
-				}
-				//mvprintw(4,1,"Antes da escrita");
+					
+					strcpy(msg.msg, plData->player->message);
+					strcpy(msg.namePlayerSentMessage, plData->player->name);
+					//write to player pipe name
+					int fdWrPlayer = open(msg.pipeName, O_RDWR);
+					if(fdWrPlayer == -1) {
+						perror("Error openning private message fifo\n"); 
+					}
+					//mvprintw(4,1,"Antes da escrita");
 
-				size = write (fdWrPlayer, &msg, sizeof(MESSAGE));
-				//mvprintw(5,1,"Depois da escrita");
-				close(fdWrPlayer);
-				//printf("Sent: Player %s sent %s e o tamanho [%d]\n", msg.namePlayerSentMessage, msg.msg, size);
-}		
+					size = write (fdWrPlayer, &msg, sizeof(MESSAGE));
+					//mvprintw(5,1,"Depois da escrita");
+					close(fdWrPlayer);
+					//printf("Sent: Player %s sent %s e o tamanho [%d]\n", msg.namePlayerSentMessage, msg.msg, size);
+				}		
 			}
 
          	noecho();        // Volta a desligar o echo das teclas premidas
          	cbreak();        // e a lógica de input em linha+enter no fim
-         	break;
-      	case 'q':
-         	*plData->stop = 1;
          	break;
     	}
 		if(plData->player->move != -2) {
@@ -301,6 +316,8 @@ void *threadPlay(void *data) {
          	wrefresh(plData->window); 
       	}
    	}
+	close(plData->fd);
+	unlink(pipeNamePIDPlayer);
 	pthread_exit(NULL);
 }
 
@@ -321,7 +338,7 @@ void *threadRecGame(void *data) {
 	RECGAMEDATA *recGData = (RECGAMEDATA *) data;
 	//printf("Inside threadRecGame\n");
 	int size = 0;
-	while(recGData->stop) {
+	while(stop == 0) {
 		wrefresh(recGData->window);
 		box(recGData->window,0,0);
 
@@ -351,7 +368,7 @@ void *threadRecMessages(void *data) {
 		perror("Error openning private message fifo\n"); 
 	}
 
-	while(recMSGData->stop) {
+	while(stop == 0) {
 		//read from pipe PRIVATE MSG PID
 		size = read (fdRdPlayerMSG, &msg, sizeof(MESSAGE));
 		//show player the msg from the other player
@@ -365,12 +382,16 @@ void *threadRecMessages(void *data) {
 		wrefresh(recMSGData->window);
 		refresh();
 	}
-	close(fdRdPlayerMSG);
-	unlink(pipeNamePrivMSG);
 	
+	unlink(pipeNamePrivMSG);
+	close(fdRdPlayerMSG);
 	//printf("Outside threadRecMessages\n");
 	pthread_exit(NULL);
 
+}
+
+void handlerSignalGameUI(int signum, siginfo_t *info, void *secret) {
+	stop = 1;
 }
 
 void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo){

@@ -25,32 +25,32 @@
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int *stop;
+    int stop;
 } KBDATA;
 
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int *stop;
+    int stop;
 } TBDATA;
 
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int *stop;
+    int stop;
     int timeEnrolment;
 } ACPDATA;
 
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int *stop;
+    int stop;
 } CLKDATA;
 
 typedef struct {
     GAME *game;
     pthread_mutex_t *mutexGame;
-    int *stop;
+    int stop;
 } PLAYERSDATA;
 
 
@@ -92,6 +92,11 @@ void sendMap(GAME *game);
 void removeDynamicObstacle(GAME * game);
 
 void insertDynamicObstacle(GAME *game);
+
+void kickPlayer(GAME *game, PLAYER player, int accepted);
+
+void handlerSignalEngine(int signum, siginfo_t *info, void *secret);
+
 /*
 ENROLLMENT - time to enroll
 NPLAYERS - min of players

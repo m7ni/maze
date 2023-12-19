@@ -25,14 +25,14 @@ typedef struct {
 
 typedef struct {
     PLAYER *player;
-    int *stop;
+    int stop;
     WINDOW *window;
     int fd;
 } PLAYDATA;
 
 typedef struct {
     GAME *game;
-    int *stop;
+    int stop;
     WINDOW *window;
     WINDOW *wInfo;
     int fdRdEngine;
@@ -51,4 +51,7 @@ void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo);
 void resizeHandler(int sig);
 
 void readMap(int fdRdEngine,WINDOW * window, WINDOW* wInfo);
+
+void handlerSignalGameUI(int signum, siginfo_t *info, void *secret);
+
 #endif
