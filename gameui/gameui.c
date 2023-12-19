@@ -6,13 +6,29 @@ int main(int argc, char *argv[]) {
     int lin, col, color;
 	char pipeName[50];
     WINDOW *wGame, *wComands, *wGeneral, *wInfo;
-    
     PLAYER player;
 	PLAYDATA playData;
 	RECGAMEDATA recGameData;
 	RECMSGDATA recMSGData;
 	pthread_t threadPlayID, threadRecGameID, threadRecMSGID;
     stop = 0;
+
+	struct sigaction sa_winch;
+    sa_winch.sa_handler = handlerSignalGameUI;
+    sigemptyset(&sa_winch.sa_mask);
+    sa_winch.sa_flags = 0;
+
+	struct sigaction sa_int;
+    sa_int.sa_handler = handlerSignalGameUI;
+    sigemptyset(&sa_int.sa_mask);
+    sa_int.sa_flags = 0;
+
+	struct sigaction sa_usr1;
+    sa_usr1.sa_handler = handlerSignalGameUI;
+    sigemptyset(&sa_usr1.sa_mask);
+    sa_usr1.sa_flags = 0;
+
+
     if(argc != 2) {
         printf("\n[ERROR] Invalid number of arguments -> Sintax: <./gameui NAME>\n");
         exit(1);
@@ -26,8 +42,11 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	signal(SIGWINCH, resizeHandler);
+	//signal(SIGWINCH, resizeHandler);
 
+    if (sigaction(SIGWINCH, &sa_winch, NULL) == -1) {
+        perror("Unable to register SIGWINCH signal handler");
+    }
 	char pipeNameRecEngine[30];
 
 	sprintf(pipeNameRecEngine, FIFO_GAMEUI, getpid());
@@ -50,11 +69,16 @@ int main(int argc, char *argv[]) {
     //receive response from engine to see if the player can enter the game
 	size = read (fdRdEngine, &player, sizeof(player));
 
-	struct sigaction sa;
-    sa.sa_sigaction = handlerSignalGameUI;
-    sa.sa_flags = SA_SIGINFO;
+	
 
-    sigaction(SIGUSR1, &sa, NULL);
+    //sigaction(SIGUSR1, &sa, NULL);
+	
+	if (sigaction(SIGUSR1, &sa_usr1, NULL) == -1) {
+        perror("Unable to register SIGUSR1 signal handler");
+    }
+	if (sigaction(SIGINT, &sa_int, NULL) == -1) {
+        perror("Unable to register SIGINT signal handler");
+    }
 
 	if(player.accepted == 0) {	//cannot play because there are already someone with that name
 		printf("There are already someone with your name or the time to enter the game ended\n"); 
@@ -132,6 +156,11 @@ int main(int argc, char *argv[]) {
 		//printf("Created threadRecMessages\n");
 	} else {
 		readMap(fdRdEngine,wGame,wInfo);
+
+		// if(pthread_create(&threadPlayID, NULL, &threadPlay, &playData)) {
+		// 	perror("Error creating threadPlay\n");
+		// 	//send player to engine to take him out of the game
+		// }
 	}
 	
 
@@ -146,6 +175,15 @@ int main(int argc, char *argv[]) {
 		perror("Error creating threadRecGame\n");
 		//send player to engine to take hi out of the game
 	}
+
+	while(1) {
+        if(stop == 1) {
+			pthread_kill(threadRecGameID,SIGUSR1);
+			pthread_kill(threadRecMSGID,SIGUSR1);
+			pthread_kill(threadPlayID,SIGUSR1);
+            break;
+        }
+    }
 
 	pthread_join(threadRecGameID, NULL);
 	pthread_join(threadRecMSGID, NULL);
@@ -171,10 +209,6 @@ int main(int argc, char *argv[]) {
 
    	endwin();
    	return 0;
-}
-
-void resizeHandler(int sig) { //compor nesta função
-    refresh();
 }
 
 int keyboardCmdGameUI(PLAYER *player, WINDOW *wComands) {
@@ -305,12 +339,13 @@ void *threadPlay(void *data) {
          	cbreak();        // e a lógica de input em linha+enter no fim
          	break;
     	}
-		if(plData->player->move != -2) {
-			//send player to engine ENGINE FIFO GAME
-			size = write (plData->fd, plData->player, sizeof(PLAYER));
-			//printf("Sent: %s com a move %d e o tamanho [%d]\n", plData->player->name, plData->player->move, size);
+		if(stop!=1){
+			if(plData->player->move != -2) {
+				//send player to engine ENGINE FIFO GAME
+				size = write (plData->fd, plData->player, sizeof(PLAYER));
+				//printf("Sent: %s com a move %d e o tamanho [%d]\n", plData->player->name, plData->player->move, size);
+			}
 		}
-
       	if (p != NULL) {
          	p = NULL;
          	wrefresh(plData->window); 
@@ -392,7 +427,15 @@ void *threadRecMessages(void *data) {
 }
 
 void handlerSignalGameUI(int signum, siginfo_t *info, void *secret) {
-	stop = 1;
+	if (signum == SIGINT) {
+        //printf("Received signal %d (SIGINT)\n", signum);
+    } else if (signum == SIGWINCH) {
+        //printf("Received signal %d (SIGWINCH)\n", signum);
+		refresh();
+    } else if (signum == SIGUSR1) {
+        //printf("Received signal %d (SIGUSR1)\n", signum);
+		stop = 1;
+    }
 }
 
 void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo){

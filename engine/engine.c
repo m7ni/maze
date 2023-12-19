@@ -93,6 +93,17 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    while(1) {
+        if(stop == 1) {
+            pthread_kill(threadACPID, SIGUSR2);
+            pthread_kill(threadClockID, SIGUSR2);
+            pthread_kill(threadKBID, SIGUSR2);
+            pthread_kill(threadPlayersID, SIGUSR2);
+            pthread_kill(threadBotID, SIGUSR2);
+            break;
+        }
+    }
+
     pthread_join(threadACPID, NULL);
     pthread_join(threadClockID, NULL);
     pthread_join(threadKBID, NULL);
@@ -247,6 +258,9 @@ void sendMap(GAME *game) {
         int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
         if (fdWrGamePlayer == -1)
         {
+            fprintf(stderr, "\nError opening %s for writing: %d\n", pipeNameGamePlayer, errno);
+
+            kickPlayer(game,game->players[i],1);
             perror("Error openning game fifo\n");
         }
 
@@ -259,6 +273,10 @@ void sendMap(GAME *game) {
         int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
         if (fdWrGamePlayer == -1)
         {
+            fprintf(stderr, "\nError opening %s for writing: %d\n", pipeNameGamePlayer, errno);
+
+            kickPlayer(game,game->nonPlayers[i],0);
+
             perror("Error openning game fifo\n");
         }
 
@@ -291,6 +309,10 @@ void *threadACP(void *data)
         {
             printf("\n[PIPE %s] Player: %s\n", FIFO_ENGINE_ACP, player.name);
         }
+
+        // if(stop==1){
+        //     break;
+        // }
 
         pthread_mutex_lock(acpData->mutexGame);
         // sleep 
@@ -349,7 +371,7 @@ void *threadACP(void *data)
 
             printf("\nThe number of players for this game has been reached or time for entry as ended\n");
         }
-
+        printf("aqui");
         pthread_mutex_unlock(acpData->mutexGame);
 
         // send player to gameui to see if he can enter the game
@@ -369,7 +391,7 @@ void *threadACP(void *data)
     }
     
     printf("Outside threadACP\n");
-    unlink(FIFO_ENGINE_GAME);
+    unlink(FIFO_ENGINE_ACP);
     close(fdRdACP);
     pthread_exit(NULL);
 }
