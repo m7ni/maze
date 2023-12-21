@@ -113,7 +113,6 @@ int main(int argc, char *argv[])
 
 void *threadReadBot(void *data)
 {
-    printf("Inside threadBOT\n");
     TBDATA *tbData = (TBDATA *)data;
     char buffer[BUFFER_SIZE];
     char col[20], lin[20], duration[20];
@@ -183,14 +182,14 @@ void placeRock(int col, int lin, int duration, GAME *game)
     }
     else
     {
-        printf("Space for Rock was occupied [%c] %d %d\n", game->map[lin][col], lin, col);
+        printf("\nSpace for Rock was occupied [%c] %d %d\n", game->map[lin][col], lin, col);
     }
 }
 
 void *threadClock(void *data)
 {
     CLKDATA *clkData = (CLKDATA *)data;
-    printf("Inside threadClock\n");
+
     int size = 0;
 
     while (stop == 0)
@@ -289,7 +288,7 @@ void *threadACP(void *data)
     int flag = 0, i = 0, n, cont = 0;
     ACPDATA *acpData = (ACPDATA *)data;
 
-    printf("\nInside thread ACP\n");
+
 
     int fdRdACP = open(FIFO_ENGINE_ACP, O_RDWR);
     if (fdRdACP == -1)
@@ -307,7 +306,7 @@ void *threadACP(void *data)
         int size = read(fdRdACP, &player, sizeof(PLAYER));
         if (size > 0)
         {
-            printf("\n[PIPE %s] Player: %s\n", FIFO_ENGINE_ACP, player.name);
+            //printf("\n[PIPE %s] Player: %s\n", FIFO_ENGINE_ACP, player.name);
         }
 
         // if(stop==1){
@@ -315,11 +314,11 @@ void *threadACP(void *data)
         // }
 
         pthread_mutex_lock(acpData->mutexGame);
-        // sleep 
+        /*
         printf("acpData->game->nPlayers %d\n",acpData->game->nPlayers);
         printf("acpData->game->level %d\n",acpData->game->level);
         printf("acpData->game->start %d\n",acpData->game->start);
-        printf("acpData->timeEnrolment %d\n",acpData->timeEnrolment);
+        printf("acpData->timeEnrolment %d\n",acpData->timeEnrolment);*/
 
 
         if (acpData->game->nPlayers < 5 && acpData->game->level == 0 && acpData->game->start == 0 && acpData->timeEnrolment > 0)
@@ -371,23 +370,22 @@ void *threadACP(void *data)
 
             printf("\nThe number of players for this game has been reached or time for entry as ended\n");
         }
-        printf("aqui");
+
         pthread_mutex_unlock(acpData->mutexGame);
 
         // send player to gameui to see if he can enter the game
-        printf("\n%d", player.pid);
+
         sprintf(pipeName, FIFO_GAMEUI, player.pid);
-        printf("\n%s", pipeName);
+
         int fdWrInitGameui = open(pipeName, O_WRONLY);
         if (fdWrInitGameui == -1)
         {
-            perror("open");
             fprintf(stderr, "\nError opening %s for writing: %d\n", pipeName, errno);
         }
 
         size = write(fdWrInitGameui, &player, sizeof(player));
 
-        printf("Sent: %s with size [%d]\n", player.name, size);
+        //printf("Sent: %s with size [%d]\n", player.name, size);
     }
     
     printf("Outside threadACP\n");
@@ -398,7 +396,6 @@ void *threadACP(void *data)
 
 void setEnvVars()
 {
-    printf("Created");
     setenv("ENROLLMENT", "60", 1); // Create the variable, overwriting if exist (1)
     setenv("NPLAYERS", "2", 1);
     setenv("DURATION", "60", 1);
@@ -480,11 +477,8 @@ void launchBot(GAME *game)
         sprintf(coordS, "%d", coord);
         sprintf(durationS, "%d", duration);
 
-        printf("durationS [%s]\n", durationS);
+        printf("\ndurationS [%s]\t", durationS);
         printf("CoordS [%s]\n", coordS);
-
-        printf("duration [%d]\n", duration);
-        printf("Coord [%d]\n", coord);
 
         if (pidBot < 0)
         {
@@ -493,7 +487,7 @@ void launchBot(GAME *game)
         }
         if (pidBot == 0)
         {
-            printf("bot [%d] with pid %d\n", i, getpid());
+            printf("\nbot [%d] with pid %d\n", i, getpid());
             if (dup2(game->pipeBot[1], STDOUT_FILENO) == -1)
             {
                 perror("dup2");
@@ -516,7 +510,7 @@ void launchBot(GAME *game)
             game->bots[game->nBots++] = bot;
             coord = coord - 5;
             duration = duration - 5;
-            printf("\nBack to the parent\n");
+
         }
     }
 }
@@ -526,17 +520,17 @@ void closeBot(GAME *game)
     int status = 0;
     union sigval value;
     value.sival_int = 2; // You can pass an integer value if needed
-    //printf("Close Bot\n");
+
     for (int i = 0; i < game->nBots; i++)
     {
         printf("Close Bot [%d][%d]\n", game->nBots, game->bots[i].pid);
         if (sigqueue((pid_t)game->bots[i].pid, SIGINT, value) == 0)
         {
-            printf("Sent SIGINT signal to Bot with PID %d\n", game->bots[i].pid);
+            //printf("Sent SIGINT signal to Bot with PID %d\n", game->bots[i].pid);
             wait(&game->bots[game->nBots].pid);
             if (WIFEXITED(game->bots[i].pid))
             {
-                printf("Bot with PID [%d] terminated (%d)\n", game->bots[i].pid, status);
+                //printf("Bot with PID [%d] terminated (%d)\n", game->bots[i].pid, status);
                 game->nBots--;
             }
         }
@@ -696,7 +690,7 @@ void *threadKBEngine(void *data)
 
                     union sigval val;
                     val.sival_int = 4;        //linha que acrescenta para o exemplo 2
-                    printf("\nSent signal");
+
                     sigqueue(getpid(), SIGUSR2, val);
                     
                     pthread_mutex_unlock(kbData->mutexGame);
@@ -720,10 +714,8 @@ void removeDynamicObstacle(GAME *game)
         DINAMICOBS obs;
 
         if(i==0){
-            printf("\nO que estava na posicao [%c]\n", game->map[game->obstacle[i].position[0]][game->obstacle[i].position[1]]);
             printf("Lin: %d Col: %d\n", game->obstacle[i].position[0], game->obstacle[i].position[1]);
             game->map[game->obstacle[i].position[0]][game->obstacle[i].position[1]] = ' ';
-            printf("O que agora esta na posicao [%c]\n", game->map[game->obstacle[i].position[0]][game->obstacle[i].position[1]]);
             sendMap(game);
         }
         if(i < game->nObs - 1) {
@@ -907,7 +899,7 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
         player->position[1] = col;
     }
     flagWin = 0;
-    // printf("\nPOSITION: after [%d][%d]\n", player->position[0], player->position[1]);
+
 }
 
 void *threadPlayers(void *data)
@@ -931,7 +923,6 @@ void *threadPlayers(void *data)
     char pipeNameGamePlayer[30];
     while (stop == 0)
     { 
-        printf("\nStop na thread: %d", plData->stop);
         // read the player ENGINE FIFO GAME
         size = read(fdRdPlayerMoves, &player, sizeof(PLAYER));
         printf("\nReceived player: %s with move: %d\n", player.name, player.move);
@@ -971,7 +962,7 @@ void *threadPlayers(void *data)
                     char pipeNamePIDPlayer[30];
                     sprintf(pipeNamePIDPlayer, FIFO_PID_MSG, player.pid);
 
-                    printf("\nIndice: %d", indice);
+
                     strcpy(plData->game->players[indice].personNameMessage, player.name);
                     strcpy(plData->game->players[indice].message, player.message);
 
@@ -1112,42 +1103,44 @@ void kickPlayer(GAME *game, PLAYER player, int accepted) {
     
     // send signal to player and remove him from the game
     if(accepted == 0) {
-        for (int i = 0; i < game->nPlayers; i++)
+        for (int i = 0; i < game->nNonPlayers; i++)
         {
             if(game->nonPlayers[i].pid == player.pid){
-                printf("\nO que estava na posicao [%c]\n", game->map[game->nonPlayers[i].position[0]][game->nonPlayers[i].position[1]]);
-                printf("Lin: %d Col: %d\n", game->nonPlayers[i].position[0], game->nonPlayers[i].position[1]);
                 game->map[game->nonPlayers[i].position[0]][game->nonPlayers[i].position[1]] = ' ';
-                printf("\nPlayer %s has been kicked\n", game->nonPlayers[i].name);
-                printf("O que agora esta na posicao [%c]\n", game->map[game->nonPlayers[i].position[0]][game->nonPlayers[i].position[1]]);
+                printf("\nNonPlayer %s has been kicked\n", game->nonPlayers[i].name);
                 sigqueue(player.pid, SIGUSR1, val);
-                sendMap(game);
+                
             }
             
         }
+        game->nNonPlayers--;
+        printf("\nnNonPlayers %d\n", game->nNonPlayers);
+        for(int i = 0 ; i < game->nNonPlayers ; i++) {
+            if(i < game->nNonPlayers - 1) {
+                game->nonPlayers[i] = game->nonPlayers[i + 1];
+            }
+        }
+        sendMap(game);game->nPlayers--;
     } else {
         for (int i = 0; i < game->nPlayers; i++)
         {
             if(game->players[i].pid == player.pid){
-                printf("\nO que estava na posicao [%c]\n", game->map[game->players[i].position[0]][game->players[i].position[1]]);
-                printf("Lin: %d Col: %d\n", game->players[i].position[0], game->players[i].position[1]);
                 game->map[game->players[i].position[0]][game->players[i].position[1]] = ' ';
                 printf("\nPlayer %s has been kicked\n", game->players[i].name);
-                printf("O que agora esta na posicao [%c]\n", game->map[game->players[i].position[0]][game->players[i].position[1]]);
                 sigqueue(player.pid, SIGUSR1, val);
-                sendMap(game);
+               
             }
             
         }
-    }
 
-    
-    game->nPlayers--;
-    printf("\nnPlayers %d\n", game->nPlayers);
-    for(int i = 0 ; i < game->nPlayers ; i++) {
-        if(i < game->nPlayers - 1) {
-            game->players[i] = game->players[i + 1];
+        game->nPlayers--;
+        printf("\nnPlayers %d\n", game->nPlayers);
+        for(int i = 0 ; i < game->nPlayers ; i++) {
+            if(i < game->nPlayers - 1) {
+                game->players[i] = game->players[i + 1];
+            }
         }
+        sendMap(game);
     }
     
 }

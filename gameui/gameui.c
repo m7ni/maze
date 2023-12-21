@@ -178,16 +178,21 @@ int main(int argc, char *argv[]) {
 
 	while(1) {
         if(stop == 1) {
+			if(player.accepted == 1) {
+				pthread_kill(threadPlayID,SIGUSR1);
+				pthread_kill(threadRecMSGID,SIGUSR1);
+			}
 			pthread_kill(threadRecGameID,SIGUSR1);
-			pthread_kill(threadRecMSGID,SIGUSR1);
-			pthread_kill(threadPlayID,SIGUSR1);
             break;
         }
     }
-
+	if(player.accepted == 1) { 
+		pthread_join(threadPlayID, NULL);
+		pthread_join(threadRecMSGID, NULL);
+	}
 	pthread_join(threadRecGameID, NULL);
-	pthread_join(threadRecMSGID, NULL);
-	pthread_join(threadPlayID, NULL);
+	
+	
 
 	unlink(pipeNameRecEngine);
 	close(fdRdEngine);
