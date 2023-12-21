@@ -257,6 +257,7 @@ void sendMap(GAME *game) {
         int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
         if (fdWrGamePlayer == -1)
         {
+            printf("\nErro no open fifo Player: %s", game->players[i].name);
             fprintf(stderr, "\nError opening %s for writing: %d\n", pipeNameGamePlayer, errno);
 
             kickPlayer(game,game->players[i],1);
@@ -309,9 +310,9 @@ void *threadACP(void *data)
             //printf("\n[PIPE %s] Player: %s\n", FIFO_ENGINE_ACP, player.name);
         }
 
-        // if(stop==1){
-        //     break;
-        // }
+        if(stop==1){
+            break;
+        }
 
         pthread_mutex_lock(acpData->mutexGame);
         /*
@@ -675,13 +676,14 @@ void *threadKBEngine(void *data)
                 else if (strcmp(cmd, "exit") == 0) //POR IMPLEMENTAR
                 {
                     pthread_mutex_lock(kbData->mutexGame);
-                    for(int i = 0 ; i < kbData->game->nPlayers ; i++) {
+                    for(int i = 0 ; i < 5; i++) {
                         // avisar os jogadores;
-                        kickPlayer(kbData->game, kbData->game->players[i], 1);
+                        kickPlayer(kbData->game, kbData->game->players[0], 1);
+                        
                     }
-                    for(int i = 0 ; i < kbData->game->nNonPlayers ; i++) {
+                    for(int i = 0 ; i < 5 ; i++) {
                         // avisar os nao jogadores;
-                        kickPlayer(kbData->game, kbData->game->nonPlayers[i], 0);
+                        kickPlayer(kbData->game, kbData->game->nonPlayers[0], 0);
                     }
                     // avisar os bots com um sinal;
                     for(int i = 0 ; i < kbData->game->nBots ; i++) {
@@ -709,18 +711,14 @@ void *threadKBEngine(void *data)
 
 void removeDynamicObstacle(GAME *game)
 {
-    for (int i = 0; i < game->nObs; i++)
+    for (int i = 0; i < game->nObs - 1; i++)
     {
-        DINAMICOBS obs;
-
         if(i==0){
             printf("Lin: %d Col: %d\n", game->obstacle[i].position[0], game->obstacle[i].position[1]);
             game->map[game->obstacle[i].position[0]][game->obstacle[i].position[1]] = ' ';
             sendMap(game);
         }
-        if(i < game->nObs - 1) {
-            game->obstacle[i] = game->obstacle[i + 1];
-        }
+        game->obstacle[i] = game->obstacle[i + 1];
     }
     game->nObs--;
     printf("\nnObs %d\n", game->nObs);
@@ -1110,17 +1108,20 @@ void kickPlayer(GAME *game, PLAYER player, int accepted) {
                 printf("\nNonPlayer %s has been kicked\n", game->nonPlayers[i].name);
                 sigqueue(player.pid, SIGUSR1, val);
                 
+                printf("\nnNonPlayers %d\n", game->nNonPlayers);
+                if(i != 4) {
+                    for(int j = i ; j < game->nNonPlayers - 1; j++) {
+                        game->nonPlayers[j] = game->nonPlayers[j + 1];
+                    }
+                }
+                
+                game->nNonPlayers -= 1;
+                break;
             }
             
         }
-        game->nNonPlayers--;
-        printf("\nnNonPlayers %d\n", game->nNonPlayers);
-        for(int i = 0 ; i < game->nNonPlayers ; i++) {
-            if(i < game->nNonPlayers - 1) {
-                game->nonPlayers[i] = game->nonPlayers[i + 1];
-            }
-        }
-        sendMap(game);game->nPlayers--;
+        
+        sendMap(game);
     } else {
         for (int i = 0; i < game->nPlayers; i++)
         {
@@ -1128,17 +1129,18 @@ void kickPlayer(GAME *game, PLAYER player, int accepted) {
                 game->map[game->players[i].position[0]][game->players[i].position[1]] = ' ';
                 printf("\nPlayer %s has been kicked\n", game->players[i].name);
                 sigqueue(player.pid, SIGUSR1, val);
-               
+                
+                printf("\nnPlayers %d\n", game->nPlayers);
+                if(i != 4) {
+                    for(int j = i ; j < game->nPlayers - 1; j++) {
+                        game->players[j] = game->players[j + 1];
+                    }
+                }
+
+                game->nPlayers -= 1;
+                break;
             }
             
-        }
-
-        game->nPlayers--;
-        printf("\nnPlayers %d\n", game->nPlayers);
-        for(int i = 0 ; i < game->nPlayers ; i++) {
-            if(i < game->nPlayers - 1) {
-                game->players[i] = game->players[i + 1];
-            }
         }
         sendMap(game);
     }
