@@ -231,7 +231,7 @@ void *threadClock(void *data)
             // game over
             printf("\nGame over");
         }
-        else if (clkData->game->timeleft == 0 && clkData->game->level == 0 || clkData->game->start == 1)
+        else if (clkData->game->timeleft == 0 && clkData->game->level == 0 && clkData->game->nPlayers >= clkData->game->minNplayers|| clkData->game->start == 1)
         {
 
             if (clkData->game->start != 1)
@@ -601,15 +601,39 @@ void *threadKBEngine(void *data)
         {
             cmd[strlen(cmd) - 1] = '\0';
             if(kbData->game->start == 0) {
-                if (strcmp(cmd, "begin") == 0) //FUNCIONA
+                if (strcmp(cmd, "begin") == 0) 
                 { // init the game automatically even if there is no min number of Players
                     pthread_mutex_lock(kbData->mutexGame);
                     kbData->game->start = 1;
                     passLevel(kbData->game);
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
+                else if (strcmp(cmd, "exit") == 0)
+                {
+                    pthread_mutex_lock(kbData->mutexGame);
+                    for(int i = 0 ; i < 5; i++) {
+                        // avisar os jogadores;
+                        kickPlayer(kbData->game, kbData->game->players[0], 1);
+                        
+                    }
+                    for(int i = 0 ; i < 5 ; i++) {
+                        // avisar os nao jogadores;
+                        kickPlayer(kbData->game, kbData->game->nonPlayers[0], 0);
+                    }
+                    // avisar os bots com um sinal;
+                    for(int i = 0 ; i < kbData->game->nBots ; i++) {
+                        closeBot(kbData->game);
+                    }
+
+                    union sigval val;
+                    val.sival_int = 4;        //linha que acrescenta para o exemplo 2
+
+                    sigqueue(getpid(), SIGUSR2, val);
+                    
+                    pthread_mutex_unlock(kbData->mutexGame);
+                }
             } else {
-                if (strcmp(cmd, "users") == 0) //FUNCIONA
+                if (strcmp(cmd, "users") == 0) 
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                     printf("\nPlayers:\n");
@@ -621,7 +645,7 @@ void *threadKBEngine(void *data)
 
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "bots") == 0) //FUNCIONA
+                else if (strcmp(cmd, "bots") == 0) 
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                     if (kbData->game->nBots == 0)
@@ -632,12 +656,12 @@ void *threadKBEngine(void *data)
                     printf("\nBots:\n");
                     for (int i = 0; i < kbData->game->nBots; i++)
                     {
-                        printf("Bot %d with PID[%d]\t interval [%d]\t duration [%d]",
+                        printf("Bot %d with PID[%d]\t interval [%d]\t duration [%d]\n",
                             i, kbData->game->bots[i].pid, kbData->game->bots[i].interval, kbData->game->bots[i].duration);
                     }
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "bmov") == 0) //FUNCIONA
+                else if (strcmp(cmd, "bmov") == 0) 
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                     if (kbData->game->nBots == 20)
@@ -650,7 +674,7 @@ void *threadKBEngine(void *data)
                     }
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "rbm") == 0) //NAO FUNCIONA
+                else if (strcmp(cmd, "rbm") == 0) 
                 {
                     pthread_mutex_lock(kbData->mutexGame);
 
@@ -664,8 +688,8 @@ void *threadKBEngine(void *data)
                     }
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "begin") == 0) //FUNCIONA
-                { // init the game automatically even if there is no min number of Players
+                else if (strcmp(cmd, "begin") == 0) 
+                { 
 
 
                     pthread_mutex_lock(kbData->mutexGame);
@@ -673,19 +697,16 @@ void *threadKBEngine(void *data)
                     passLevel(kbData->game);
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "exit") == 0) //POR IMPLEMENTAR
+                else if (strcmp(cmd, "exit") == 0) 
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                     for(int i = 0 ; i < 5; i++) {
-                        // avisar os jogadores;
                         kickPlayer(kbData->game, kbData->game->players[0], 1);
                         
                     }
                     for(int i = 0 ; i < 5 ; i++) {
-                        // avisar os nao jogadores;
                         kickPlayer(kbData->game, kbData->game->nonPlayers[0], 0);
                     }
-                    // avisar os bots com um sinal;
                     for(int i = 0 ; i < kbData->game->nBots ; i++) {
                         closeBot(kbData->game);
                     }
