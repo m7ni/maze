@@ -16,17 +16,17 @@ int main(int argc, char *argv[]) {
 	struct sigaction sa_winch;
     sa_winch.sa_handler = handlerSignalGameUI;
     sigemptyset(&sa_winch.sa_mask);
-    sa_winch.sa_flags = 0;
+    sa_winch.sa_flags = SA_SIGINFO;
 
 	struct sigaction sa_int;
     sa_int.sa_handler = handlerSignalGameUI;
     sigemptyset(&sa_int.sa_mask);
-    sa_int.sa_flags = 0;
+    sa_int.sa_flags = SA_SIGINFO;
 
 	struct sigaction sa_usr1;
     sa_usr1.sa_handler = handlerSignalGameUI;
     sigemptyset(&sa_usr1.sa_mask);
-    sa_usr1.sa_flags = 0;
+    sa_usr1.sa_flags = SA_SIGINFO;
 
 
     if(argc != 2) {
@@ -431,7 +431,7 @@ void *threadRecMessages(void *data) {
 
 }
 
-void handlerSignalGameUI(int signum, siginfo_t *info, void *secret) {
+void handlerSignalGameUI(int signum/*, siginfo_t *info, void *secret*/) {
 	if (signum == SIGINT) {
         //printf("Received signal %d (SIGINT)\n", signum);
     } else if (signum == SIGWINCH) {

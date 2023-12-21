@@ -52,6 +52,6 @@ void resizeHandler(int sig);
 
 void readMap(int fdRdEngine,WINDOW * window, WINDOW* wInfo);
 
-void handlerSignalGameUI(int signum, siginfo_t *info, void *secret);
+void handlerSignalGameUI(int signum/*, siginfo_t *info, void *secret*/);
 
 #endif
