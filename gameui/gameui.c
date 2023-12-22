@@ -422,9 +422,7 @@ void *threadRecMessages(void *data) {
 		wrefresh(recMSGData->window);
 		refresh();
 	}
-	mvwprintw(recMSGData->window,1,1, "ANTESSSS");
 	unlink(pipeNamePrivMSG);
-	mvwprintw(recMSGData->window,2,1, "DEPOIIS");
 	close(fdRdPlayerMSG);
 	//printf("Outside threadRecMessages\n");
 	pthread_exit(NULL);
@@ -444,65 +442,117 @@ void handlerSignalGameUI(int signum/*, siginfo_t *info, void *secret*/) {
 }
 
 void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo){
-
+	int flag = 0;
 	init_pair(1, COLOR_YELLOW, COLOR_BLUE);
 	init_pair(2, COLOR_YELLOW, COLOR_RED);
 
-	for(int i = 0 ; i < 16 ; i++) {
-		for(int j=0 ; j < 40 ; j++){
-			if(game.map[i][j] == 'x'){
-				attron(COLOR_PAIR(2));
-				mvwprintw(wGame,i+1,j+1,"X");
-				attroff(COLOR_PAIR(2));
+	if(game.gameover == 1) {
+		werase(wGame);
+		box(wGame,0,0);
+
+		wrefresh(wGame);
+		for(int i= 0;i<game.nPlayers;i++){
+			if(game.players[i].pid == getpid()) {
+				mvwprintw(wGame,1,1, "GAME OVER");
+				flag = 1;
+				break;
+			}		
+		}
+		if(flag == 0) {
+			for(int i= 0;i<game.nNonPlayers;i++){
+				if(game.nonPlayers[i].pid == getpid()) {
+					mvwprintw(wGame,1,1, "GAME ENDED");
+					flag = 0;
+					break;
+				}		
 			}
-			else if(game.map[i][j] == ' '){
-				mvwprintw(wGame,i+1,j+1," ");
-			} 
-			else if(game.map[i][j] == '0') {
-				mvwprintw(wGame,i+1,j+1,"0");
+		}
+	} 
+	else if(game.win == 1) {
+		werase(wGame);
+		box(wGame,0,0);
+
+		wrefresh(wGame);
+		for(int i = 0 ; i < game.nPlayers ; i++){
+			if(game.players[i].pid == getpid()) {
+				if(strcmp(game.winPlayer, game.players[i].name) == 0) {
+					mvwprintw(wGame,1,1, "YOU WON!");
+					flag = 1;
+					break;
+				}
 			}
-			else if(game.map[i][j] == '1') {
-				mvwprintw(wGame,i+1,j+1,"1");
+		}
+		for(int i= 0;i<game.nNonPlayers;i++){
+			if(game.nonPlayers[i].pid == getpid()) {
+				mvwprintw(wGame,1,1, "GAME ENDED");
+				flag = 1;
+				break;
+			}		
+		}
+		if(flag == 0) {
+			mvwprintw(wGame,1,1, "YOU LOST!");
+		}
+		flag = 0;
+	} 
+	else {
+		for(int i = 0 ; i < 16 ; i++) {
+			for(int j=0 ; j < 40 ; j++){
+				if(game.map[i][j] == 'x'){
+					attron(COLOR_PAIR(2));
+					mvwprintw(wGame,i+1,j+1,"X");
+					attroff(COLOR_PAIR(2));
+				}
+				else if(game.map[i][j] == ' '){
+					mvwprintw(wGame,i+1,j+1," ");
+				} 
+				else if(game.map[i][j] == '0') {
+					mvwprintw(wGame,i+1,j+1,"0");
+				}
+				else if(game.map[i][j] == '1') {
+					mvwprintw(wGame,i+1,j+1,"1");
+				}
+				else if(game.map[i][j] == '2') {
+					mvwprintw(wGame,i+1,j+1,"2");
+				}
+				else if(game.map[i][j] == '3') {
+					mvwprintw(wGame,i+1,j+1,"3");
+				}
+				else if(game.map[i][j] == '4') {
+					mvwprintw(wGame,i+1,j+1,"4");
+				}
+				else if(game.map[i][j] == 'R') {
+					mvwprintw(wGame,i+1,j+1,"R");
+				}
+				else if(game.map[i][j] == 'W') {
+					mvwprintw(wGame,i+1,j+1,"W");
+				}
 			}
-			else if(game.map[i][j] == '2') {
-				mvwprintw(wGame,i+1,j+1,"2");
+		}
+
+		mvwprintw(wInfo,1,1,"Moving Obstacle: %d",game.nObs);
+		mvwprintw(wInfo,2,1,"Rocks: %d",game.nRocks);
+		mvwprintw(wInfo, 3, 1, "Players: ");
+		
+		for(int i= 0;i<game.nPlayers;i++){
+			//mvwprintw(wInfo,3+i,1,"%s",game.players[i].name);
+			wprintw(wInfo, "%s", game.players[i].name);
+
+			// Add a comma and space if there are more players
+			if (i < game.nPlayers - 1) {
+				wprintw(wInfo, ", ");
 			}
-			else if(game.map[i][j] == '3') {
-				mvwprintw(wGame,i+1,j+1,"3");
-			}
-			else if(game.map[i][j] == '4') {
-				mvwprintw(wGame,i+1,j+1,"4");
-			}
-			else if(game.map[i][j] == 'R') {
-				mvwprintw(wGame,i+1,j+1,"R");
-			}
-			else if(game.map[i][j] == 'W') {
-				mvwprintw(wGame,i+1,j+1,"W");
-			}
+		}
+
+		mvwprintw(wInfo, 4, 1, "Time: %d", game.timeleft);
+
+		for(int i= 0;i<game.nPlayers;i++){
+			if(game.players[i].pid == getpid()) {
+				mvwprintw(wInfo, 5, 1, "Score: %d", game.players[i].score);
+				break;
+			}		
 		}
 	}
 	
-	mvwprintw(wInfo,1,1,"Moving Obstacle: %d",game.nObs);
-	mvwprintw(wInfo,2,1,"Rocks: %d",game.nRocks);
-	mvwprintw(wInfo, 3, 1, "Players: ");
 	
-	for(int i= 0;i<game.nPlayers;i++){
-		//mvwprintw(wInfo,3+i,1,"%s",game.players[i].name);
-		 wprintw(wInfo, "%s", game.players[i].name);
-
-        // Add a comma and space if there are more players
-        if (i < game.nPlayers - 1) {
-            wprintw(wInfo, ", ");
-        }
-	}
-
-	mvwprintw(wInfo, 4, 1, "Time: %d", game.timeleft);
-
-	for(int i= 0;i<game.nPlayers;i++){
-		if(game.players[i].pid == getpid()) {
-			mvwprintw(wInfo, 5, 1, "Score: %d", game.players[i].score);
-			break;
-		}		
-	}
 	
 }

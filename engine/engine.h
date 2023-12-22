@@ -97,6 +97,8 @@ void kickPlayer(GAME *game, PLAYER player, int accepted);
 
 void handlerSignalEngine(int signum, siginfo_t *info, void *secret);
 
+void endGame(GAME *game);
+
 /*
 ENROLLMENT - time to enroll
 NPLAYERS - min of players

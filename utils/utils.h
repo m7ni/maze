@@ -65,6 +65,9 @@ typedef struct {
     int timeDec;        //time decrement VAR de ambiente
     int start;
     int timeleft;       //time to enter the game and time of the
+    int gameover;
+    int win;
+    char winPlayer[30];
     int *pipeBot;
 } GAME;
 

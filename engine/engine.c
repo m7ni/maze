@@ -111,6 +111,26 @@ int main(int argc, char *argv[])
     pthread_join(threadBotID, NULL);
 }
 
+void endGame(GAME *game) {
+    for(int i = 0 ; i < 5; i++) {
+        // avisar os jogadores;
+        kickPlayer(game, game->players[0], 1); 
+    }
+    for(int i = 0 ; i < 5 ; i++) {
+        // avisar os nao jogadores;
+        kickPlayer(game, game->nonPlayers[0], 0);
+    }
+        // avisar os bots com um sinal;
+    for(int i = 0 ; i < game->nBots ; i++) {
+        closeBot(game);
+    }
+
+    union sigval val;
+    val.sival_int = 4;        //linha que acrescenta para o exemplo 2
+
+    sigqueue(getpid(), SIGUSR2, val);
+}
+
 void *threadReadBot(void *data)
 {
     TBDATA *tbData = (TBDATA *)data;
@@ -228,8 +248,11 @@ void *threadClock(void *data)
 
         if (clkData->game->timeleft == 0 && clkData->game->level != 0)
         {
-            // game over
             printf("\nGame over");
+            clkData->game->gameover = 1;
+            sendMap(clkData->game);
+            sleep(5);
+            endGame(clkData->game);
         }
         else if (clkData->game->timeleft == 0 && clkData->game->level == 0 && clkData->game->nPlayers >= clkData->game->minNplayers|| clkData->game->start == 1)
         {
@@ -611,24 +634,7 @@ void *threadKBEngine(void *data)
                 else if (strcmp(cmd, "exit") == 0)
                 {
                     pthread_mutex_lock(kbData->mutexGame);
-                    for(int i = 0 ; i < 5; i++) {
-                        // avisar os jogadores;
-                        kickPlayer(kbData->game, kbData->game->players[0], 1);
-                        
-                    }
-                    for(int i = 0 ; i < 5 ; i++) {
-                        // avisar os nao jogadores;
-                        kickPlayer(kbData->game, kbData->game->nonPlayers[0], 0);
-                    }
-                    // avisar os bots com um sinal;
-                    for(int i = 0 ; i < kbData->game->nBots ; i++) {
-                        closeBot(kbData->game);
-                    }
-
-                    union sigval val;
-                    val.sival_int = 4;        //linha que acrescenta para o exemplo 2
-
-                    sigqueue(getpid(), SIGUSR2, val);
+                    
                     
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
@@ -1093,9 +1099,18 @@ void placePlayers(GAME *game)
 
 void passLevel(GAME *game)
 {
+    int score = 0;
     if(game->level == 3) {
-        //end engine
-        
+        game->win = 1;
+        for(int i = 0 ; i < game->nPlayers ; i++) {
+            if(score < game->players[i].score) {
+                score = game->players[i].score;
+                strcpy(game->winPlayer, game->players[i].name);
+            }
+        }
+        sendMap(game);
+        sleep(5);
+        endGame(game);
         return;
     }
     game->start = 1;
