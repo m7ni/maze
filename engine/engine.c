@@ -672,10 +672,10 @@ void *threadKBEngine(void *data)
         fgets(cmd, sizeof(cmd), stdin);
         printf("\n");
 
-        if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0) // Command "Kick"
+        if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0) // Command "kick"
         {
             pthread_mutex_lock(kbData->mutexGame);
-            for (int i = 0; i < kbData->game->nPlayers; i++)
+            for (int i = 0; i < 5; i++)
             {                
                 if (strcmp(kbData->game->players[i].name, str2) == 0)
                 {
@@ -685,11 +685,12 @@ void *threadKBEngine(void *data)
                     break;
                 }
             }
-            for (int i = 0; i < kbData->game->nNonPlayers; i++)
+            for (int i = 0; i < 5; i++)
             {                
                 if (strcmp(kbData->game->nonPlayers[i].name, str2) == 0)
                 {
-                    kickPlayer(kbData->game, kbData->game->nonPlayers[i], 1);
+                    printf("ENTREI\n");
+                    kickPlayer(kbData->game, kbData->game->nonPlayers[i], 0);
                     
                     flag = 1;
                     break;
@@ -716,7 +717,14 @@ void *threadKBEngine(void *data)
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                      union sigval val;
-                    val.sival_int = 4;        
+                    val.sival_int = 4;  
+
+                    for(int i = 0 ; i < 5; i++) {
+                        kickPlayer(kbData->game, kbData->game->players[0], 1);
+                    }
+                    for(int i = 0 ; i < 5 ; i++) {
+                        kickPlayer(kbData->game, kbData->game->nonPlayers[0], 0);
+                    }      
 
                     sigqueue(getpid(), SIGUSR2, val);
                     
@@ -785,6 +793,8 @@ void *threadKBEngine(void *data)
                         kickPlayer(kbData->game, kbData->game->players[0], 1);
                     }
                     for(int i = 0 ; i < 5 ; i++) {
+                        printf("Entrei\n");
+                        printf("\nName: %s", kbData->game->nonPlayers[0].name);
                         kickPlayer(kbData->game, kbData->game->nonPlayers[0], 0);
                     }
                     for(int i = 0 ; i < kbData->game->nBots ; i++) {
@@ -1280,16 +1290,20 @@ void passLevel(GAME *game)
  *
  * @param game Pointer to the GAME structure representing the game state.
  * @param player The PLAYER structure representing the player to be kicked.
- * @param accepted Flag indicating whether the kick is accepted (1) or not (0).
+ * @param accepted Flag indicating whether the player is accepted in the game (1) or not (0).
  */
 void kickPlayer(GAME *game, PLAYER player, int accepted) {
     union sigval val;
     val.sival_int = 3;
-    
+    printf("BEFORE\n");
+    printf("Accepted: %d\n", accepted);
+    printf("nNonPlayers: %d\n", game->nNonPlayers);
     // send signal to player and remove him from the game
     if(accepted == 0) {
+        printf("Player non accepted");
         for (int i = 0; i < game->nNonPlayers; i++)
         {
+            printf("Name to kick: %s", game->nonPlayers[i].name);
             if(game->nonPlayers[i].pid == player.pid){
                 game->map[game->nonPlayers[i].position[0]][game->nonPlayers[i].position[1]] = ' ';
                 printf("\nNonPlayer %s has been kicked\n", game->nonPlayers[i].name);

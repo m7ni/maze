@@ -619,7 +619,8 @@ void printmap(GAME game, WINDOW* wGame, WINDOW * wInfo){
 		mvwprintw(wInfo, 4, 1, "Time: %d", game.timeleft);
 		for(int i= 0;i<game.nPlayers;i++){
 			if(game.players[i].pid == getpid()) {
-				mvwprintw(wInfo, 5, 1, "Score: %d", game.players[i].score);
+				mvwprintw(wInfo, 5, 1, "Player: %c", game.players[i].skin);
+				mvwprintw(wInfo, 5, 13, "   Score: %d", game.players[i].score);
 				break;
 			}		
 		}
