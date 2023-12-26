@@ -2,6 +2,13 @@
 
 int stop;
 
+/**
+ * The main function of the game engine program.
+ *
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line argument strings.
+ * @return Returns 0 upon successful execution.
+ */
 int main(int argc, char *argv[])
 {
     ACPDATA acpData;
@@ -16,21 +23,34 @@ int main(int argc, char *argv[])
     stop = 0;
 
     // Creating FIFO for accepting PLAYERS
-    if (mkfifo(FIFO_ENGINE_ACP, 0666) == -1)
-    {
-        perror("Error opening fifo or another engine is already running\n");
+    if (mkfifo(FIFO_ENGINE_ACP, 0666) == -1) {
+        printf("Error opening fifo or another engine is already running\n");
         return -1;
     }
 
-    struct sigaction sa;
-    sa.sa_sigaction = handlerSignalEngine;
-    sa.sa_flags = SA_SIGINFO;
+    // Struct for SIGUSR1, responsible initiating the orderly end of the process
+    struct sigaction sa_usr2;
+    sa_usr2.sa_handler = handlerSignalEngine;
+    sigemptyset(&sa_usr2.sa_mask);
+    sa_usr2.sa_flags = SA_SIGINFO;
 
-    sigaction(SIGUSR2, &sa, NULL);
+    // Struct for SIGINT, responsible for handling CTRL+C signal
+	struct sigaction sa_int;
+    sa_int.sa_handler = handlerSignalEngine;
+    sigemptyset(&sa_int.sa_mask);
+    sa_int.sa_flags = SA_SIGINFO;
 
-    setEnvVars();
+    if (sigaction(SIGINT, &sa_int, NULL) == -1) {
+        printf("Unable to register SIGINT signal handler\n");
+    }
+
+	if (sigaction(SIGUSR2, &sa_usr2, NULL) == -1) {
+        printf("Unable to register SIGUSR2 signal handler\n");
+    }
+
+    setEnvVars();   // Set environment variables
     initGame(&game);
-    getEnvVars(&game, &acpData);
+    getEnvVars(&game, &acpData); // Reading environment variables
 
     pthread_mutex_init(&mutexGame, NULL);
 
@@ -38,48 +58,42 @@ int main(int argc, char *argv[])
     acpData.stop = stop;
     acpData.mutexGame = &mutexGame;
 
-    if (pthread_create(&threadACPID, NULL, &threadACP, &acpData))
-    {
-        perror("Error creating threadACP\n");
+    // Opening thread responsible for acepting Players into the game
+    if (pthread_create(&threadACPID, NULL, &threadACP, &acpData)){
+        printf("Error creating threadACP\n");
         return -1;
     }
-    printf("\nCreated thread ACP");
 
     clkData.game = &game;
     clkData.stop = stop;
     clkData.mutexGame = &mutexGame;
 
-    if (pthread_create(&threadClockID, NULL, &threadClock, &clkData))
-    {
-        perror("Error creating threadClock\n");
-
+    // Opening thread responsible for time management
+    if (pthread_create(&threadClockID, NULL, &threadClock, &clkData)){
+        printf("Error creating threadClock\n");
         return -1;
     }
-    printf("Created thread Clock\n");
 
-    createPipe(pipeBot, &game);
+
+    createPipe(pipeBot, &game); // Creating Pipe redirecting for reading bot stdout
 
     kbData.game = &game;
     kbData.stop = stop;
     kbData.mutexGame = &mutexGame;
 
-    if (pthread_create(&threadKBID, NULL, &threadKBEngine, &kbData))
-    {
-        perror("Error creating threadKB\n");
+    // Opening thread responsible for handling Admin input
+    if (pthread_create(&threadKBID, NULL, &threadKBEngine, &kbData)){
+        printf("Error creating threadKB\n");
         return -1;
     }
-
-    printf("\nCreated thread Keyboard");
-
-    // call placePlayers when the game starts
 
     plData.game = &game;
     plData.stop = stop;
     plData.mutexGame = &mutexGame;
 
-    if (pthread_create(&threadPlayersID, NULL, &threadPlayers, &plData))
-    {
-        perror("Error creating threadPlayers\n");
+    // Opening thread responsible for handling Player input
+    if (pthread_create(&threadPlayersID, NULL, &threadPlayers, &plData)){
+        printf("Error creating threadPlayers\n");
         return -1;
     }
 
@@ -87,9 +101,9 @@ int main(int argc, char *argv[])
     tbData.stop = stop;
     tbData.mutexGame = &mutexGame;
 
-    if (pthread_create(&threadBotID, NULL, &threadReadBot, &tbData))
-    {
-        perror("Error creating threadPlayers\n");
+    // Opening thread responsible for reading BOT input
+    if (pthread_create(&threadBotID, NULL, &threadReadBot, &tbData)){
+        printf("Error creating threadPlayers\n");
         return -1;
     }
 
@@ -111,35 +125,40 @@ int main(int argc, char *argv[])
     pthread_join(threadBotID, NULL);
 }
 
+/**
+ * End the game, kicking players and notifying bots.
+ *
+ * @param game Pointer to the game structure.
+ */
 void endGame(GAME *game) {
     for(int i = 0 ; i < 5; i++) {
-        // avisar os jogadores;
-        kickPlayer(game, game->players[0], 1); 
+        kickPlayer(game, game->players[0], 1);  // Kicking Players
     }
     for(int i = 0 ; i < 5 ; i++) {
-        // avisar os nao jogadores;
-        kickPlayer(game, game->nonPlayers[0], 0);
+        kickPlayer(game, game->nonPlayers[0], 0);   // Kicking non-Players
     }
-        // avisar os bots com um sinal;
-    for(int i = 0 ; i < game->nBots ; i++) {
+    for(int i = 0 ; i < game->nBots ; i++) {    // Kicking Bots
         closeBot(game);
     }
 
     union sigval val;
-    val.sival_int = 4;        //linha que acrescenta para o exemplo 2
+    val.sival_int = 4;        
 
-    sigqueue(getpid(), SIGUSR2, val);
+    sigqueue(getpid(), SIGUSR2, val);   //Seding Signal to "myself"
 }
 
+/**
+ * Thread function for reading input from the bot and updating the game state accordingly.
+ *
+ * @param data Pointer to the TBDATA structure containing necessary data.
+ * @return NULL
+ */
 void *threadReadBot(void *data)
 {
     TBDATA *tbData = (TBDATA *)data;
     char buffer[BUFFER_SIZE];
     char col[20], lin[20], duration[20];
     int bytes_read, i = 0;
-    // printf("\npipebot %d\n", tbpipeBot[0]);
-    // printf("\npid do bot %d\n", pid);
-    // close(pipeBot[1]);
 
     pthread_mutex_lock(tbData->mutexGame);
     for (int i = 0; i < 50; i++)
@@ -150,13 +169,10 @@ void *threadReadBot(void *data)
 
     while (stop == 0)
     {
-
-        // Read from the pipe
-        bytes_read = read(tbData->game->pipeBot[0], buffer, 256);
-
+        bytes_read = read(tbData->game->pipeBot[0], buffer, 256); // Reading BOT Stdout
         if (bytes_read < 0)
         {
-            perror("read");
+            printf("Error reading BOT stdout");
         }
         else
         {
@@ -168,17 +184,23 @@ void *threadReadBot(void *data)
             int durationN = atoi(duration);
             pthread_mutex_lock(tbData->mutexGame);
 
-            placeRock(colN, linN, durationN, tbData->game);
+            placeRock(colN, linN, durationN, tbData->game); // Updating Map with Rock
             pthread_mutex_unlock(tbData->mutexGame);
 
-            // Print the received string
-            printf("Received: %s %s %s %d %d %d\n", lin, col, duration, linN, colN, durationN);
+            printf("Received: %s %s %s\n", lin, col, duration);
         }
     }
-    printf("Outside threadBOT\n");
     pthread_exit(NULL);
 }
 
+/**
+ * Place a rock in the game at the specified position if the space is unoccupied.
+ *
+ * @param col      The column index for the rock's position.
+ * @param lin      The line index for the rock's position.
+ * @param duration The duration of the rock's presence in the game.
+ * @param game     Pointer to the GAME structure representing the game state.
+ */
 void placeRock(int col, int lin, int duration, GAME *game)
 {
     ROCK rock;
@@ -202,10 +224,15 @@ void placeRock(int col, int lin, int duration, GAME *game)
     }
     else
     {
-        printf("\nSpace for Rock was occupied [%c] %d %d\n", game->map[lin][col], lin, col);
+        printf("Space for Rock was occupied [%c] %d %d\n", game->map[lin][col], lin, col);
     }
 }
 
+/**
+ * Thread function responsible for managing the game clock and handling time-related events.
+ *
+ * @param data Pointer to CLKDATA structure containing game data and synchronization objects.
+ */
 void *threadClock(void *data)
 {
     CLKDATA *clkData = (CLKDATA *)data;
@@ -216,12 +243,11 @@ void *threadClock(void *data)
     {
         sleep(1);
         pthread_mutex_lock(clkData->mutexGame);
-        //printf("Timeleft: %d\n", clkData->game->timeleft);
-        if (clkData->game->timeleft > 0)
+        if (clkData->game->timeleft > 0) // Game is still ongoing
         {
             clkData->game->timeleft--;
 
-            for (int i = 0; i < 50; i++)
+            for (int i = 0; i < 50; i++)    // Updating Rocks
             {
                 if (clkData->game->rocks[i].skin != 'U')
                 {
@@ -239,24 +265,23 @@ void *threadClock(void *data)
                 }
             }
 
-            for (int i = 0; i < clkData->game->nObs; i++)
+            for (int i = 0; i < clkData->game->nObs; i++) // Updating Obstacles
             {
                 movePlayer(clkData->game, NULL, &clkData->game->obstacle[i]);
                 sendMap(clkData->game);
             }
         }
 
-        if (clkData->game->timeleft == 0 && clkData->game->level != 0)
+        if (clkData->game->timeleft == 0 && clkData->game->level != 0) // Game Ended
         {
-            printf("\nGame over");
+            printf("\nGame Ended");
             clkData->game->gameover = 1;
             sendMap(clkData->game);
             sleep(5);
             endGame(clkData->game);
         }
-        else if (clkData->game->timeleft == 0 && clkData->game->level == 0 && clkData->game->nPlayers >= clkData->game->minNplayers|| clkData->game->start == 1)
+        else if (clkData->game->timeleft == 0 && clkData->game->level == 0 && clkData->game->nPlayers >= clkData->game->minNplayers|| clkData->game->start == 1)    // Time to Enroll has passed
         {
-
             if (clkData->game->start != 1)
             {
                 printf("Time to enroll has passed\n");
@@ -266,13 +291,18 @@ void *threadClock(void *data)
         }
         pthread_mutex_unlock(clkData->mutexGame);
     }
-    printf("Outside threadClock\n");
     pthread_exit(NULL);
 }
 
+/**
+ * Sends the current game state to all players and non-players through their respective FIFOs.
+ *
+ * @param game Pointer to the GAME structure representing the current game state.
+ */
 void sendMap(GAME *game) {
     int size = 0;
     char pipeNameGamePlayer[30];
+
     for (int i = 0; i < game->nPlayers; i++)
     {
         sprintf(pipeNameGamePlayer, FIFO_GAMEUI, game->players[i].pid);
@@ -280,15 +310,16 @@ void sendMap(GAME *game) {
         int fdWrGamePlayer = open(pipeNameGamePlayer, O_RDWR);
         if (fdWrGamePlayer == -1)
         {
-            printf("\nErro no open fifo Player: %s", game->players[i].name);
-            fprintf(stderr, "\nError opening %s for writing: %d\n", pipeNameGamePlayer, errno);
-
+            printf("Erro no open fifo Player: %s\n", game->players[i].name);
             kickPlayer(game,game->players[i],1);
-            perror("Error openning game fifo\n");
         }
 
         size = write(fdWrGamePlayer, game, sizeof(GAME));
+        if (size == -1) {
+            printf("Error sending Game");
+        }
     }
+
     for (int i = 0; i < game->nNonPlayers; i++)
     {
         sprintf(pipeNameGamePlayer, FIFO_GAMEUI, game->nonPlayers[i].pid);
@@ -297,28 +328,37 @@ void sendMap(GAME *game) {
         if (fdWrGamePlayer == -1)
         {
             fprintf(stderr, "\nError opening %s for writing: %d\n", pipeNameGamePlayer, errno);
-
             kickPlayer(game,game->nonPlayers[i],0);
-
-            perror("Error openning game fifo\n");
         }
 
         size = write(fdWrGamePlayer, game, sizeof(GAME));
+        if (size == -1) {
+            printf("Error sending Game");
+        }
     }
 }
 
+/**
+ * Thread responsible for accepting players into the game.
+ * It reads player information from a FIFO, processes the request,
+ * and responds to the players.
+ *
+ * @param data The data structure containing information needed for the thread.
+ * @see ACPDATA
+ */
 void *threadACP(void *data)
 { // thread to accept players
     int flag = 0, i = 0, n, cont = 0;
     ACPDATA *acpData = (ACPDATA *)data;
 
 
-
     int fdRdACP = open(FIFO_ENGINE_ACP, O_RDWR);
     if (fdRdACP == -1)
     {
-        perror("Error opening FIFO for accepting players\n");
-        // function to exit everything
+        printf("Error opening FIFO for accepting players\n");
+        union sigval val;
+        val.sival_int = 4;        
+        sigqueue(getpid(), SIGUSR2, val);   //Seding Signal to "myself"
     }
 
     while (stop == 0)
@@ -327,10 +367,9 @@ void *threadACP(void *data)
         flag = 0;
         char pipeName[50];
 
-        int size = read(fdRdACP, &player, sizeof(PLAYER));
-        if (size > 0)
-        {
-            //printf("\n[PIPE %s] Player: %s\n", FIFO_ENGINE_ACP, player.name);
+        int size = read(fdRdACP, &player, sizeof(PLAYER)); // Player trying to enter the game
+        if (size == -1) {
+			printf("Error reading Message");
         }
 
         if(stop==1){
@@ -338,16 +377,10 @@ void *threadACP(void *data)
         }
 
         pthread_mutex_lock(acpData->mutexGame);
-        /*
-        printf("acpData->game->nPlayers %d\n",acpData->game->nPlayers);
-        printf("acpData->game->level %d\n",acpData->game->level);
-        printf("acpData->game->start %d\n",acpData->game->start);
-        printf("acpData->timeEnrolment %d\n",acpData->timeEnrolment);*/
-
-
-        if (acpData->game->nPlayers < 5 && acpData->game->level == 0 && acpData->game->start == 0 && acpData->timeEnrolment > 0)
+        
+        if (acpData->game->nPlayers < 5 && acpData->game->level == 0 && acpData->game->start == 0 && acpData->timeEnrolment > 0) // Still able to play
         {
-            for (i = 0; i < acpData->game->nPlayers; i++)
+            for (i = 0; i < acpData->game->nPlayers; i++) // Checking for repeated names
             {
                 if (strcmp(acpData->game->players[i].name, player.name) == 0)
                 {
@@ -361,7 +394,7 @@ void *threadACP(void *data)
             if (flag == 0)
             {
                 player.accepted = 1;
-                switch (acpData->game->nPlayers)
+                switch (acpData->game->nPlayers) //Assigning skins
                 {
                 case 0:
                     player.skin = '0';
@@ -379,6 +412,7 @@ void *threadACP(void *data)
                     player.skin = '4';
                     break;
                 }
+
                 player.score = 0;
                 acpData->game->players[acpData->game->nPlayers] = player;
                 acpData->game->nPlayers++;
@@ -386,7 +420,7 @@ void *threadACP(void *data)
                 printf("\nPlayer %s [%d] entered the game", player.name, acpData->game->nPlayers - 1);
             }
         }
-        else
+        else // Player will only be able to watch
         {
             player.accepted = 2;
             acpData->game->nonPlayers[acpData->game->nNonPlayers] = player;
@@ -397,27 +431,34 @@ void *threadACP(void *data)
 
         pthread_mutex_unlock(acpData->mutexGame);
 
-        // send player to gameui to see if he can enter the game
-
+    
         sprintf(pipeName, FIFO_GAMEUI, player.pid);
-
+        
+        //Opening Player's PIPE
         int fdWrInitGameui = open(pipeName, O_WRONLY);
         if (fdWrInitGameui == -1)
         {
             fprintf(stderr, "\nError opening %s for writing: %d\n", pipeName, errno);
         }
 
-        size = write(fdWrInitGameui, &player, sizeof(player));
 
-        //printf("Sent: %s with size [%d]\n", player.name, size);
+        size = write(fdWrInitGameui, &player, sizeof(player));  // Writing the response to the Player
+        if (size == -1) {
+            printf("Error sending Game");
+            kickPlayer(acpData->game,player,player.accepted);        
+        }
     }
     
-    printf("Outside threadACP\n");
     unlink(FIFO_ENGINE_ACP);
     close(fdRdACP);
     pthread_exit(NULL);
 }
 
+/**
+ * Sets environment variables needed for the game initialization.
+ * These variables include enrollment time, the number of players, 
+ * game duration, and the decrement value for obstacles.
+ */
 void setEnvVars()
 {
     setenv("ENROLLMENT", "60", 1); // Create the variable, overwriting if exist (1)
@@ -426,52 +467,69 @@ void setEnvVars()
     setenv("DECREMENT", "5", 1);
 }
 
+/**
+ * Retrieves environment variables related to game configuration and initializes
+ * corresponding fields in the provided structures (GAME and ACPDATA).
+ * The method reads variables such as ENROLLMENT time, the minimum number of players,
+ * game duration, and the decrement value for obstacles.
+ *
+ * @param game    The GAME structure to store game-related environment variables.
+ * @param acpData The ACPDATA structure to store enrollment-related environment variables.
+ */
 void getEnvVars(GAME *game, ACPDATA *acpData)
 {
     char *p = NULL;
 
-    p = getenv("ENROLLMENT"); // Ler variável com um determinado nome
-
+    p = getenv("ENROLLMENT");   // Read variable with a specific name
     if (p != NULL)
     {
         printf("\nVariable: ENROLLMENT = %s", p);
         acpData->timeEnrolment = (int)*p;
         game->timeleft = acpData->timeEnrolment;
     }
-    // cast to int to put in struct game
 
-    p = getenv("NPLAYERS"); // Ler variável com um determinado nome
-
+    p = getenv("NPLAYERS");   // Read variable with a specific name
     if (p != NULL)
     {
         printf("\nVariable: NPLAYERS = %s", p);
         game->minNplayers = (int)*p;
     }
 
-    p = getenv("DURATION"); // Ler variável com um determinado nome
-
+    p = getenv("DURATION");   // Read variable with a specific name
     if (p != NULL)
     {
         printf("\nVariable: DURATION = %s", p);
         game->time = (int)*p;
     }
 
-    p = getenv("DECREMENT"); // Ler variável com um determinado nome
-
+    p = getenv("DECREMENT");   // Read variable with a specific name
     if (p != NULL)
     {
         printf("\nVariable: DECREMENT = %s\n", p);
         game->timeDec = atoi(p);
-        // game->timeDec = 5;
     }
 }
 
+/**
+ * Creates a pipe for communication between the game and the bot. The pipe is
+ * used to redirect the bot's standard output (stdout) to the game for processing.
+ *
+ * @param pipeBot An array to store file descriptors of the pipe for bot communication.
+ * @param game    The GAME structure where the pipe information will be stored.
+ */
 void createPipe(int *pipeBot, GAME *game)
 {
     pipe(pipeBot);
     game->pipeBot = pipeBot;
 }
 
+/**
+ * Launches bots for the game based on the current game level. Each bot is created
+ * as a separate process with its own process ID (PID), and its standard output (stdout)
+ * is redirected to the game for processing through a pipe.
+ *
+ * @param game The GAME structure where information about the game and bots will be stored.
+ */
 void launchBot(GAME *game)
 {
     int coord = 30;
@@ -496,39 +554,35 @@ void launchBot(GAME *game)
     {
         BOT bot;
         int pidBot = fork();
-        printf("\nfork result %d\n", pidBot);
 
         sprintf(coordS, "%d", coord);
         sprintf(durationS, "%d", duration);
-
-        printf("\ndurationS [%s]\t", durationS);
-        printf("CoordS [%s]\n", coordS);
 
         if (pidBot < 0)
         {
             perror("Error creating Bot (Failed Fork())\n");
             continue;
         }
-        if (pidBot == 0)
+        if (pidBot == 0) // Inside cloned process
         {
-            printf("\nbot [%d] with pid %d\n", i, getpid());
-            if (dup2(game->pipeBot[1], STDOUT_FILENO) == -1)
+            if (dup2(game->pipeBot[1], STDOUT_FILENO) == -1)    // Overwritting the standard output of the cloned process with the anonymous pipe write end
             {
-                perror("dup2");
+                printf("dup2\n");
                 exit(EXIT_FAILURE);
             }
             close(game->pipeBot[1]);
             close(game->pipeBot[0]);
-            int res = execl("bot/bot.exe", "bot", coordS, durationS, NULL);
+
+            int res = execl("bot/bot.exe", "bot", coordS, durationS, NULL); // Executing Bot program on the cloned process
             if (res != 0)
             {
-                perror("Failed Execl\n");
+                printf("Failed Execl\n");
+                exit(EXIT_FAILURE);
             }
         }
-        else
+        else   // Back on the Original process
         {
             bot.pid = pidBot;
-            printf("PARENT bot [%d] with pid %d\n", i, bot.pid);
             bot.duration = coord;
             bot.interval = duration;
             game->bots[game->nBots++] = bot;
@@ -539,6 +593,15 @@ void launchBot(GAME *game)
     }
 }
 
+/**
+ * Closes the specified bots in the game.
+ *
+ * This function sends a SIGINT signal to each bot in the game to initiate the
+ * closing process. It waits for each bot to terminate and updates the game's
+ * information accordingly.
+ *
+ * @param game Pointer to the GAME structure.
+ */
 void closeBot(GAME *game)
 {
     int status = 0;
@@ -560,11 +623,20 @@ void closeBot(GAME *game)
         }
         else
         {
-            perror("sigqueue");
+            printf("Error sending signal to Bot [%d]",game->bots[i].pid);
         }
     }
 }
 
+/**
+ * Initializes a new game, setting initial values for various parameters.
+ *
+ * This function resets the game state, preparing it for a new session. It sets
+ * the game level, the number of players, bots, non-players, obstacles, and rocks
+ * to zero. Additionally, it sets the game start flag to zero.
+ *
+ * @param game Pointer to the GAME structure.
+ */
 void initGame(GAME *game)
 {
     game->level = 0;
@@ -578,8 +650,17 @@ void initGame(GAME *game)
     // game->timeleft = 10;
 }
 
+/**
+ * Thread function to handle keyboard inputs for game control and player interaction.
+ *
+ * This function runs in a separate thread to read and process keyboard inputs.
+ * It supports various commands to manage the game state, including kicking players,
+ * starting or exiting the game, viewing players and bots, and more.
+ *
+ * @param data Pointer to the KBDATA structure containing thread-specific data.
+ */
 void *threadKBEngine(void *data)
-{ // thread to receive commands from the kb
+{ 
     KBDATA *kbData = (KBDATA *)data;
     char cmd[200], str1[30], str2[30];
 
@@ -591,7 +672,7 @@ void *threadKBEngine(void *data)
         fgets(cmd, sizeof(cmd), stdin);
         printf("\n");
 
-        if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0) //POR IMPLEMENTAR
+        if (sscanf(cmd, "%s %s", str1, str2) == 2 && strcmp(str1, "kick") == 0) // Command "Kick"
         {
             pthread_mutex_lock(kbData->mutexGame);
             for (int i = 0; i < kbData->game->nPlayers; i++)
@@ -624,8 +705,8 @@ void *threadKBEngine(void *data)
         {
             cmd[strlen(cmd) - 1] = '\0';
             if(kbData->game->start == 0) {
-                if (strcmp(cmd, "begin") == 0) 
-                { // init the game automatically even if there is no min number of Players
+                if (strcmp(cmd, "begin") == 0)  // Command "Begin"
+                { 
                     pthread_mutex_lock(kbData->mutexGame);
                     kbData->game->start = 1;
                     passLevel(kbData->game);
@@ -634,12 +715,15 @@ void *threadKBEngine(void *data)
                 else if (strcmp(cmd, "exit") == 0)
                 {
                     pthread_mutex_lock(kbData->mutexGame);
-                    
+                     union sigval val;
+                    val.sival_int = 4;        
+
+                    sigqueue(getpid(), SIGUSR2, val);
                     
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
             } else {
-                if (strcmp(cmd, "users") == 0) 
+                if (strcmp(cmd, "users") == 0)  // Command "Users"
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                     printf("\nPlayers:\n");
@@ -651,7 +735,7 @@ void *threadKBEngine(void *data)
 
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "bots") == 0) 
+                else if (strcmp(cmd, "bots") == 0)  // Command "Bots"
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                     if (kbData->game->nBots == 0)
@@ -667,7 +751,7 @@ void *threadKBEngine(void *data)
                     }
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "bmov") == 0) 
+                else if (strcmp(cmd, "bmov") == 0) // Command "BMOV"
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                     if (kbData->game->nBots == 20)
@@ -680,7 +764,7 @@ void *threadKBEngine(void *data)
                     }
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "rbm") == 0) 
+                else if (strcmp(cmd, "rbm") == 0) // Command "RBM"
                 {
                     pthread_mutex_lock(kbData->mutexGame);
 
@@ -694,21 +778,11 @@ void *threadKBEngine(void *data)
                     }
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
-                else if (strcmp(cmd, "begin") == 0) 
-                { 
-
-
-                    pthread_mutex_lock(kbData->mutexGame);
-                    kbData->game->start = 1;
-                    passLevel(kbData->game);
-                    pthread_mutex_unlock(kbData->mutexGame);
-                }
-                else if (strcmp(cmd, "exit") == 0) 
+                else if (strcmp(cmd, "exit") == 0)  // Command "EXIT"
                 {
                     pthread_mutex_lock(kbData->mutexGame);
                     for(int i = 0 ; i < 5; i++) {
                         kickPlayer(kbData->game, kbData->game->players[0], 1);
-                        
                     }
                     for(int i = 0 ; i < 5 ; i++) {
                         kickPlayer(kbData->game, kbData->game->nonPlayers[0], 0);
@@ -718,7 +792,7 @@ void *threadKBEngine(void *data)
                     }
 
                     union sigval val;
-                    val.sival_int = 4;        //linha que acrescenta para o exemplo 2
+                    val.sival_int = 4;        
 
                     sigqueue(getpid(), SIGUSR2, val);
                     
@@ -732,10 +806,17 @@ void *threadKBEngine(void *data)
             
         }
     }
-    printf("\nOutside threadKB");
     pthread_exit(NULL);
 }
 
+/**
+ * Remove a dynamic obstacle from the game.
+ *
+ * This function removes the first dynamic obstacle in the game, updates the game map,
+ * and sends the updated map to all players.
+ *
+ * @param game Pointer to the GAME structure representing the game state.
+ */
 void removeDynamicObstacle(GAME *game)
 {
     for (int i = 0; i < game->nObs - 1; i++)
@@ -751,6 +832,15 @@ void removeDynamicObstacle(GAME *game)
     printf("\nnObs %d\n", game->nObs);
 }
 
+/**
+ * Insert a dynamic obstacle into the game.
+ *
+ * This function generates random coordinates (x, y) and checks if the position in the
+ * game map is empty. If it is, the function adds a dynamic obstacle to the game,
+ * updates the game map, and increments the number of dynamic obstacles.
+ *
+ * @param game Pointer to the GAME structure representing the game state.
+ */
 void insertDynamicObstacle(GAME *game)
 {
     DINAMICOBS obs;
@@ -772,6 +862,15 @@ void insertDynamicObstacle(GAME *game)
     }
 }
 
+/**
+ * Read the game map from a file based on the specified level.
+ *
+ * This function reads the content of a file representing the game map for a given
+ * level and updates the game map accordingly.
+ *
+ * @param level The level for which to read the map.
+ * @param game Pointer to the GAME structure representing the game state.
+ */
 void readFileMap(int level, GAME *game)
 {
     FILE *file;
@@ -820,8 +919,7 @@ void readFileMap(int level, GAME *game)
 
         // Skip remaining characters in the line if it's longer than 40 characters
         int c;
-        while ((c = fgetc(file)) != EOF && c != '\n')
-            ;
+        while ((c = fgetc(file)) != EOF && c != '\n');
     }
 
     // Close the file
@@ -838,6 +936,18 @@ void readFileMap(int level, GAME *game)
     }
 }
 
+/**
+ * Move a player or dynamic obstacle on the game map.
+ *
+ * This function moves a player or dynamic obstacle on the game map based on the
+ * specified direction. It updates the game map and the position of the player or
+ * obstacle accordingly. If a player reaches the top of the map, it increments the
+ * player's score and passes the level.
+ *
+ * @param game Pointer to the GAME structure representing the game state.
+ * @param player Pointer to the PLAYER structure representing the player (or NULL for a dynamic obstacle).
+ * @param obstacle Pointer to the DINAMICOBS structure representing the dynamic obstacle (or NULL for a player).
+ */
 void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
 { // meter esta func bem
     int flagWin = 0;
@@ -845,15 +955,15 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
     char skin;
     int lin;
     int col;
-    if (player == NULL)
-    { // dynamic obstacle
+    if (player == NULL) // dynamic obstacle
+    { 
         srand(time(NULL));
         move = rand() % 4 + 1;
         skin = obstacle->skin;
         lin = obstacle->position[0];
         col = obstacle->position[1];
     }
-    else
+    else   // Player
     {
         move = player->move;
         skin = player->skin;
@@ -912,13 +1022,13 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
         break;
     }
 
-    if (player == NULL)
-    { // dynamic obstacle
+    if (player == NULL) // dynamic obstacle
+    { 
         
         obstacle->position[0] = lin;
         obstacle->position[1] = col;
     }
-    else if(player != NULL && flagWin == 0)
+    else if(player != NULL && flagWin == 0) // Player
     {
         player->position[0] = lin;
         player->position[1] = col;
@@ -927,6 +1037,15 @@ void movePlayer(GAME *game, PLAYER *player, DINAMICOBS *obstacle)
 
 }
 
+/**
+ * Thread function for handling player moves and messages.
+ *
+ * This function is responsible for handling player moves and messages. It reads
+ * player moves from a FIFO, processes the moves, and updates the game state accordingly.
+ * It also handles messages sent by players and sends responses to the respective players.
+ *
+ * @param data Pointer to the PLAYERSDATA structure containing necessary data for the thread.
+ */
 void *threadPlayers(void *data)
 {
     PLAYERSDATA *plData = (PLAYERSDATA *)data;
@@ -948,8 +1067,11 @@ void *threadPlayers(void *data)
     char pipeNameGamePlayer[30];
     while (stop == 0)
     { 
-        // read the player ENGINE FIFO GAME
         size = read(fdRdPlayerMoves, &player, sizeof(PLAYER));
+        if (size == -1) {
+            printf("Error reading Player Moves");
+        }	
+
         printf("\nReceived player: %s with move: %d\n", player.name, player.move);
         int indice;
         if (player.skin == '0')
@@ -974,8 +1096,8 @@ void *threadPlayers(void *data)
         }
         plData->game->players[indice].move = player.move;
 
-        if (player.move == -2)
-        { // player sent a msg
+        if (player.move == -2) // Player wants to send a Message
+        { 
             pthread_mutex_lock(plData->mutexGame);
             for (int i = 0; i < plData->game->nPlayers + 1; i++)
             {
@@ -983,21 +1105,23 @@ void *threadPlayers(void *data)
                 {
                     sprintf(msg.pipeName, FIFO_PRIVATE_MSG, plData->game->players[i].pid);
 
-                    // send to the player the struct message
+                   
                     char pipeNamePIDPlayer[30];
                     sprintf(pipeNamePIDPlayer, FIFO_PID_MSG, player.pid);
-
 
                     strcpy(plData->game->players[indice].personNameMessage, player.name);
                     strcpy(plData->game->players[indice].message, player.message);
 
-                    int fdWrPIDPlayer = open(pipeNamePIDPlayer, O_WRONLY);
-
+                    int fdWrPIDPlayer = open(pipeNamePIDPlayer, O_WRONLY); // Opening Player's pipe
                     if (fdWrPIDPlayer == -1)
                     {
-                        perror("Error openning pid message fifo\n");
+                        printf("Error openning pid message fifo\n");
                     }
+
                     size = write(fdWrPIDPlayer, &msg, sizeof(MESSAGE));
+                    if (size == -1) {
+                        printf("Error writing information to Player");
+                    }	
                     close(fdWrPIDPlayer);
 
                     flag = 0;
@@ -1006,7 +1130,7 @@ void *threadPlayers(void *data)
                 flag = 1;
             }
 
-            if (flag == 1)
+            if (flag == 1) // No player with the received name was found
             {
                 char pipeNamePIDPlayer[30];
                 sprintf(pipeNamePIDPlayer, FIFO_PID_MSG, player.pid);
@@ -1014,20 +1138,22 @@ void *threadPlayers(void *data)
                 int fdWrPIDPlayer = open(pipeNamePIDPlayer, O_RDWR);
                 if (fdWrPIDPlayer == -1)
                 {
-                    perror("Error openning pid message fifo\n");
+                    printf("Error openning pid message fifo\n");
                 }
 
                 strcpy(msg.pipeName, "error");
 
                 size = write(fdWrPIDPlayer, &msg, sizeof(MESSAGE));
-
+                if (size == -1) {
+                    printf("Error writing information to Player");
+                }	
                 close(fdWrPIDPlayer);
             }
             pthread_mutex_unlock(plData->mutexGame);
         }
-        else if (player.move == -1)
-        { // player sent a command
-            if (strcmp(player.command, "players") == 0)
+        else if (player.move == -1) // Player sent a command
+        { 
+            if (strcmp(player.command, "players") == 0) // Command "Players"
             {
                 pthread_mutex_lock(plData->mutexGame);
 
@@ -1037,21 +1163,18 @@ void *threadPlayers(void *data)
                 }
 
                 pthread_mutex_unlock(plData->mutexGame);
-                // no gameui fazer na thread que tem acesso à janela onde vao aparecer os players
-                // se o array de players do player estiver preenchido então vai dar print dos nomes
+                
             }
             
         }
-        else if (player.move == -3)
+        else if (player.move == -3) // Command "Exit"
         {
             pthread_mutex_lock(plData->mutexGame);
             kickPlayer(plData->game, player, 1);
             pthread_mutex_unlock(plData->mutexGame);
         }
-        else
-        { // move normal
-            // send to function the player from game (game.player[i])
-            // pthread_mutex_lock(plData->mutexGame);  //ver se se mete aqui o mutex ou mesmo lá dentro
+        else // Regular Move
+        { 
             for (int i = 0; i < plData->game->nPlayers; i++)
             {
                 if (strcmp(plData->game->players[i].name, player.name) == 0)
@@ -1060,9 +1183,7 @@ void *threadPlayers(void *data)
                     break;
                 }
             }
-            // pthread_mutex_unlock(plData->mutexGame);
-            // send to all players the new game -> passar function
-
+           
             pthread_mutex_lock(plData->mutexGame);
             sendMap(plData->game);
             pthread_mutex_unlock(plData->mutexGame);
@@ -1075,6 +1196,14 @@ void *threadPlayers(void *data)
     pthread_exit(NULL);
 }
 
+/**
+ * Place players on the game map.
+ *
+ * This function is responsible for placing players on the game map according to their
+ * initial positions and skins.
+ *
+ * @param game Pointer to the GAME structure representing the game state.
+ */
 void placePlayers(GAME *game)
 {
     int colRand = rand() % 40 + 1;
@@ -1097,10 +1226,19 @@ void placePlayers(GAME *game)
     }
 }
 
+/**
+ * Move the game to the next level.
+ *
+ * This function is responsible for advancing the game to the next level. It updates
+ * the game state, including the map, player positions, and other parameters for the
+ * new level.
+ *
+ * @param game Pointer to the GAME structure representing the game state.
+ */
 void passLevel(GAME *game)
 {
     int score = 0;
-    if(game->level == 3) {
+    if(game->level == 3) { // Game ended
         game->win = 1;
         for(int i = 0 ; i < game->nPlayers ; i++) {
             if(score < game->players[i].score) {
@@ -1113,16 +1251,17 @@ void passLevel(GAME *game)
         endGame(game);
         return;
     }
+
     game->start = 1;
     printf("\nGame level: %d\n", game->level);
-    if (game->level == 0) {
+    if (game->level == 0) { // First Level
         game->time = 105; // time of level 1
     }
     game->level += 1;
-    readFileMap(game->level, game);
-    placePlayers(game);
-    closeBot(game);
-    launchBot(game);
+    readFileMap(game->level, game); // Read new Map
+    placePlayers(game); // Updates players
+    closeBot(game); // Close all the previous level Bots
+    launchBot(game);    // Lauches new level Bots
 
     game->time = game->time - game->timeDec;
     game->timeleft = game->time;
@@ -1132,6 +1271,17 @@ void passLevel(GAME *game)
     printf("TimeLeft: %d\n", game->timeleft);
 }
 
+/**
+ * Kick a player from the game.
+ *
+ * This function is responsible for kicking a player from the game based on the
+ * provided PLAYER structure and a flag indicating whether the kick is accepted or not.
+ * It sends a signal to the player and removes the player from the game.
+ *
+ * @param game Pointer to the GAME structure representing the game state.
+ * @param player The PLAYER structure representing the player to be kicked.
+ * @param accepted Flag indicating whether the kick is accepted (1) or not (0).
+ */
 void kickPlayer(GAME *game, PLAYER player, int accepted) {
     union sigval val;
     val.sival_int = 3;
@@ -1181,9 +1331,22 @@ void kickPlayer(GAME *game, PLAYER player, int accepted) {
         }
         sendMap(game);
     }
-    
 }
 
-void handlerSignalEngine(int signum, siginfo_t *info, void *secret) {
-	stop = 1;
+/**
+ * Signal handler for the game engine.
+ *
+ * This function handles signals received by the game engine. It currently handles
+ * SIGINT and SIGUSR2 signals. For SIGINT, the function can be extended with appropriate
+ * actions when the game engine receives an interrupt signal. For SIGUSR2, the 'stop' flag
+ * is set to 1, indicating the termination of the game.
+ *
+ * @param signum The signal number.
+ */
+void handlerSignalEngine(int signum) {
+    if (signum == SIGINT) {
+
+    } else if (signum == SIGUSR2) {
+		stop = 1;
+    }
 }

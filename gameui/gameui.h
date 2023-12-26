@@ -17,17 +17,17 @@
 #include <pthread.h>
 #include <errno.h>
 
-typedef struct {
+typedef struct {    // Struct that holds fnformation about a Message
     char pipeName[50];
     char namePlayerSentMessage[30];
     char msg[100];
 }MESSAGE;
 
-typedef struct {
+typedef struct {   
     PLAYER *player;
     int stop;
     WINDOW *window;
-    int fd;
+    int fdFIFO_ENGINE_GAME;
 } PLAYDATA;
 
 typedef struct {
@@ -35,7 +35,7 @@ typedef struct {
     int stop;
     WINDOW *window;
     WINDOW *wInfo;
-    int fdRdEngine;
+    int fdFIFO_GAMEUI;
 } RECGAMEDATA;
 
 int keyboardCmdGameUI(PLAYER *player, WINDOW *window);

@@ -95,7 +95,7 @@ void insertDynamicObstacle(GAME *game);
 
 void kickPlayer(GAME *game, PLAYER player, int accepted);
 
-void handlerSignalEngine(int signum, siginfo_t *info, void *secret);
+void handlerSignalEngine(int signum);
 
 void endGame(GAME *game);
 
