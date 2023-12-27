@@ -170,9 +170,9 @@ void *threadReadBot(void *data)
     while (stop == 0)
     {
         bytes_read = read(tbData->game->pipeBot[0], buffer, 256); // Reading BOT Stdout
-        if (bytes_read < 0)
+        if (bytes_read < 0 && stop == 0)
         {
-            printf("Error reading BOT stdout");
+            printf("Error reading BOT stdout\n");
         }
         else
         {
@@ -369,7 +369,8 @@ void *threadACP(void *data)
 
         int size = read(fdRdACP, &player, sizeof(PLAYER)); // Player trying to enter the game
         if (size == -1) {
-			printf("Error reading Message");
+            if(stop==0)
+			    printf("Error reading Message");
         }
 
         if(stop==1){
@@ -621,10 +622,6 @@ void closeBot(GAME *game)
                 game->nBots--;
             }
         }
-        else
-        {
-            printf("Error sending signal to Bot [%d]",game->bots[i].pid);
-        }
     }
 }
 
@@ -806,8 +803,9 @@ void *threadKBEngine(void *data)
                     pthread_mutex_unlock(kbData->mutexGame);
                 }
                 else
-                {
-                    printf("\nINVALID");
+                {   
+                    if(stop==0)
+                        printf("INVALID\n");
                 }
             }
             
@@ -1061,7 +1059,6 @@ void *threadPlayers(void *data)
     MESSAGE msg;
     int flag = 1;
 
-    printf("\nInside thread Players\n");
     if (mkfifo(FIFO_ENGINE_GAME, 0666) == -1)
     {
         perror("Error creating fifo engine game\n");
@@ -1075,8 +1072,8 @@ void *threadPlayers(void *data)
     while (stop == 0)
     { 
         size = read(fdRdPlayerMoves, &player, sizeof(PLAYER));
-        if (size == -1) {
-            printf("Error reading Player Moves");
+        if (size == -1 && stop == 0) {
+                printf("Error reading Player Moves");
         }	
 
         printf("\nReceived player: %s with move: %d\n", player.name, player.move);
@@ -1199,7 +1196,6 @@ void *threadPlayers(void *data)
 
     unlink(FIFO_ENGINE_GAME);
     close(fdRdPlayerMoves);
-    printf("\nOutside threadPlayer");
     pthread_exit(NULL);
 }
 

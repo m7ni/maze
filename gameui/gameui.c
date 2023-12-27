@@ -412,7 +412,7 @@ void readMap(int fdFIFO_GAMEUI, WINDOW * wGame, WINDOW* wInfo){
 	int size = 0;
 
 	size = read (fdFIFO_GAMEUI, &game, sizeof(GAME));
-	if (size == -1) {
+	if (size == -1 & stop ==0 ) {
 		printf("Error reading Map");
 	}
 	printmap(game, wGame, wInfo);
