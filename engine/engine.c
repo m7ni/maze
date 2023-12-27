@@ -689,7 +689,6 @@ void *threadKBEngine(void *data)
             {                
                 if (strcmp(kbData->game->nonPlayers[i].name, str2) == 0)
                 {
-                    printf("ENTREI\n");
                     kickPlayer(kbData->game, kbData->game->nonPlayers[i], 0);
                     
                     flag = 1;
@@ -793,8 +792,6 @@ void *threadKBEngine(void *data)
                         kickPlayer(kbData->game, kbData->game->players[0], 1);
                     }
                     for(int i = 0 ; i < 5 ; i++) {
-                        printf("Entrei\n");
-                        printf("\nName: %s", kbData->game->nonPlayers[0].name);
                         kickPlayer(kbData->game, kbData->game->nonPlayers[0], 0);
                     }
                     for(int i = 0 ; i < kbData->game->nBots ; i++) {
@@ -1295,17 +1292,12 @@ void passLevel(GAME *game)
 void kickPlayer(GAME *game, PLAYER player, int accepted) {
     union sigval val;
     val.sival_int = 3;
-    printf("BEFORE\n");
-    printf("Accepted: %d\n", accepted);
-    printf("nNonPlayers: %d\n", game->nNonPlayers);
+
     // send signal to player and remove him from the game
     if(accepted == 0) {
-        printf("Player non accepted");
         for (int i = 0; i < game->nNonPlayers; i++)
         {
-            printf("Name to kick: %s", game->nonPlayers[i].name);
             if(game->nonPlayers[i].pid == player.pid){
-                game->map[game->nonPlayers[i].position[0]][game->nonPlayers[i].position[1]] = ' ';
                 printf("\nNonPlayer %s has been kicked\n", game->nonPlayers[i].name);
                 sigqueue(player.pid, SIGUSR1, val);
                 
